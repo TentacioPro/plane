@@ -9,19 +9,27 @@ Local-only Plane OSS stack for personal use. No SaaS dependencies, no upgrade ba
 - Minimal services: Postgres, Redis, RabbitMQ, MinIO, API, Web, Edge proxy, Celery worker/beat, one-shot migrator, and backup jobs.
 
 ## Stack (docker-compose)
-- `plane-edge`: nginx entry on http://localhost:3005 (proxies web + /api).
-- `plane-web`: Next.js frontend built from `plane-1.2.1/apps/web` (API base baked to edge).
-- `plane-api`: Django API from `plane-1.2.1/apps/api`.
-- `plane-worker`, `plane-beat`: Celery worker and scheduler.
-- `plane-migrator`: Run DB migrations once.
-- `plane-db`: Postgres 15.
-- `plane-redis`: Redis 7 (Celery result backend).
-- `plane-mq`: RabbitMQ 3.13 (Celery broker, internal only).
-- `plane-minio`: Object storage; `create-bucket` seeds bucket.
-- `db-backup`, `minio-backup`: Looping backups for DB and bucket.
 
+## Topology & ports
+- Single bridge network `plane-net`.
+- Edge/http entry: http://localhost:3005 (web + /api proxied to plane-api:8000/api/).
+- API direct (debug): http://localhost:3006.
+- MinIO: S3 9000, console 9001.
+
+## Runtime & routing notes
+- Edge rewrites `/god-mode` and `/god-mode/*` back to `/` to avoid redirect loops; keep browser on 3005 origin for cookies.
+- Edge waits for plane-web health and resolves upstream via Docker DNS to avoid stale IPs.
+- Health: Postgres `pg_isready`, Redis `redis-cli ping`, MinIO HTTP live, API TCP 8000. Migrator must finish before API is steady.
 ## Data layout
+## Auth recovery (if stuck at welcome/401)
+- Create superuser: `docker exec -it plane-selfhost-plane-api-1 python manage.py createsuperuser`.
+- Grant instance admin: `docker exec plane-selfhost-plane-api-1 python manage.py create_instance_admin <email>`.
+- Mark setup done and domain: `docker exec plane-selfhost-plane-api-1 python manage.py shell -c "from plane.license.models import Instance; i=Instance.objects.first(); i.is_setup_done=True; i.is_signup_screen_visited=True; i.domain='http://localhost:3005'; i.save();"`
 All stateful data lives under `./data/`:
+## Upgrade notes (1.2.1 source build)
+- Celery broker now RabbitMQ (`amqp://plane:plane@plane-mq:5672/plane`); Redis used for results.
+- Frontend build args point to edge (http://localhost:3005) to avoid double /api.
+- Pro/upgrade banners not yet stripped—patch web source before rebuild if desired.
 - data/postgres
 - data/redis
 - data/rabbitmq
