@@ -103,6 +103,8 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 - Personal/local use only; do not enable Pro/SaaS flows or bypass license checks.
 - Keep browser origin on http://localhost:3005 to avoid CORS/cookie issues. If you change hosts/ports, update `VITE_*_BASE_URL` build args and `WEB_URL`/`CORS_ALLOWED_ORIGINS` in compose.
 - No external telemetry unless you opt in with your own keys.
+- Compose files: prefer `docker-compose.yaml`. `docker-compose.yml` and `docker-compose-local.yml` are legacy/dev; only use them explicitly with `-f` to avoid the wrong stack.
+- AI helper rules live in .github/instructions/Copilot.instructions.md.
 
 ## License
 Plane OSS is licensed under AGPLv3. See LICENSE.txt for details.
