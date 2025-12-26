@@ -110,3 +110,12 @@ build/
 .react-router/
 temp/
 scripts/
+
+# Local data volumes (keep placeholders only)
+/data/
+!/data/**/.gitkeep
+/pgdata/
+/redisdata/
+/rabbitmqdata/
+/uploads/
+/backups/

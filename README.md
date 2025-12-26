@@ -1,172 +1,108 @@
-<br /><br />
+# Plane Self-Host (Personal Fork)
 
-<p align="center">
-<a href="https://plane.so">
-  <img src="https://media.docs.plane.so/logo/plane_github_readme.png" alt="Plane Logo" width="400">
-</a>
-</p>
-<p align="center"><b>Modern project management for all teams</b></p>
+Local-only Plane OSS stack for personal use. No SaaS dependencies, no upgrade banners, all state kept on your machine.
 
-<p align="center">
-<a href="https://discord.com/invite/A92xrEGCge">
-<img alt="Discord online members" src="https://img.shields.io/discord/1031547764020084846?color=5865F2&label=Discord&style=for-the-badge" />
-</a>
-<img alt="Commit activity per month" src="https://img.shields.io/github/commit-activity/m/makeplane/plane?style=for-the-badge" />
-</p>
+## Goals
+- Run entirely on localhost (edge on 3005).
+- Keep all state under `./data/` for easy backups and restores.
+- Stay within Plane OSS licensing; no Pro/paid unlocks or bypasses.
+- Minimal services: Postgres, Redis, RabbitMQ, MinIO, API, Web, Edge proxy, Celery worker/beat, one-shot migrator, and backup jobs.
 
-<p align="center">
-    <a href="https://plane.so/"><b>Website</b></a> •
-    <a href="https://github.com/makeplane/plane/releases"><b>Releases</b></a> •
-    <a href="https://twitter.com/planepowers"><b>Twitter</b></a> •
-    <a href="https://docs.plane.so/"><b>Documentation</b></a>
-</p>
+## Stack (docker-compose)
+- `plane-edge`: nginx entry on http://localhost:3005 (proxies web + /api).
+- `plane-web`: Next.js frontend built from `plane-1.2.1/apps/web` (API base baked to edge).
+- `plane-api`: Django API from `plane-1.2.1/apps/api`.
+- `plane-worker`, `plane-beat`: Celery worker and scheduler.
+- `plane-migrator`: Run DB migrations once.
+- `plane-db`: Postgres 15.
+- `plane-redis`: Redis 7 (Celery result backend).
+- `plane-mq`: RabbitMQ 3.13 (Celery broker, internal only).
+- `plane-minio`: Object storage; `create-bucket` seeds bucket.
+- `db-backup`, `minio-backup`: Looping backups for DB and bucket.
 
-<p>
-    <a href="https://app.plane.so/#gh-light-mode-only" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-top.webp"
-        alt="Plane Screens"
-        width="100%"
-      />
-    </a>
-</p>
+## Data layout
+All stateful data lives under `./data/`:
+- data/postgres
+- data/redis
+- data/rabbitmq
+- data/minio (uploads bucket contents)
+- data/backups/db
+- data/backups/minio
 
-Meet [Plane](https://plane.so/), an open-source project management tool to track issues, run ~sprints~ cycles, and manage product roadmaps without the chaos of managing the tool itself. 🧘‍♀️
+If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./uploads`, move those into the matching `./data/*` paths before restart.
 
-> Plane is evolving every day. Your suggestions, ideas, and reported bugs help us immensely. Do not hesitate to join in the conversation on [Discord](https://discord.com/invite/A92xrEGCge) or raise a GitHub issue. We read everything and respond to most.
+## One-time migration (legacy folders → ./data)
+- Stop stack: `docker compose -f docker-compose.yaml down` (use `-f` to avoid the older docker-compose.yml).
+- Copy old data into `./data/` (keep originals until you verify):
+  - `pgdata` → `data/postgres`
+  - `redisdata` → `data/redis`
+  - `rabbitmqdata` → `data/rabbitmq`
+  - `uploads` → `data/minio`
+  - `backups/db` → `data/backups/db`, `backups/minio` → `data/backups/minio`
+- Example (PowerShell):
+  ```pwsh
+  Set-Location E:\2025\plane-selfhost
+  robocopy .\pgdata .\data\postgres /E
+  robocopy .\redisdata .\data\redis /E
+  robocopy .\rabbitmqdata .\data\rabbitmq /E
+  robocopy .\uploads .\data\minio /E
+  robocopy .\backups\db .\data\backups\db /E
+  robocopy .\backups\minio .\data\backups\minio /E
+  ```
+- Start stack on new volumes: `docker compose -f docker-compose.yaml up -d --build`.
 
-## 🚀 Installation
+## Prerequisites
+- Docker + Docker Compose
+- ~6–8 GB RAM free for full stack
 
-Getting started with Plane is simple. Choose the setup that works best for you:
+## Configure
+- Set secrets in `docker-compose.yaml` (at minimum `SECRET_KEY`; also MinIO creds, email if needed).
+- Keep `WEB_URL`/`CORS_ALLOWED_ORIGINS` aligned with http://localhost:3005 unless you intentionally change host/port.
+- Telemetry/third-party hooks are off unless you provide keys.
 
-- **Plane Cloud**
-  Sign up for a free account on [Plane Cloud](https://app.plane.so)—it's the fastest way to get up and running without worrying about infrastructure.
+## Quick start
+1) From repo root: `docker compose up -d --build`
+2) Wait for `plane-migrator` to finish; `plane-api` and `plane-web` should stay healthy after.
+3) Open http://localhost:3005.
 
-- **Self-host Plane**
-  Prefer full control over your data and infrastructure? Install and run Plane on your own servers. Follow our detailed [deployment guides](https://developers.plane.so/self-hosting/overview) to get started.
+## First login / auth fixes
+- Create superuser if none exists:
+  `docker exec -it plane-selfhost-plane-api-1 python manage.py createsuperuser`
+- If stuck on welcome/401 loop, run:
+  `docker exec plane-selfhost-plane-api-1 python manage.py create_instance_admin <email>`
+  `docker exec plane-selfhost-plane-api-1 python manage.py shell -c "from plane.license.models import Instance; i=Instance.objects.first(); i.is_setup_done=True; i.is_signup_screen_visited=True; i.domain='http://localhost:3005'; i.save();"`
+- Edge already rewrites `/god-mode` back to `/` to keep routes normal.
 
-| Installation methods | Docs link                                                                                                                                                                               |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Docker               | [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://developers.plane.so/self-hosting/methods/docker-compose)         |
-| Kubernetes           | [![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)](https://developers.plane.so/self-hosting/methods/kubernetes) |
+## Common ops
+- Logs (edge + api): `docker compose logs -f plane-edge plane-api`
+- Rebuild web after UI changes: `docker compose build plane-web && docker compose up -d plane-web plane-edge`
+- Rerun migrations: `docker compose run --rm plane-migrator`
+- Stop stack: `docker compose down`
 
-`Instance admins` can configure instance settings with [God mode](https://developers.plane.so/self-hosting/govern/instance-admin).
+## Dev loop (local code edits)
+- Web changes (apps/web): edit code, then `docker compose build plane-web && docker compose up -d plane-web plane-edge`.
+- API changes (apps/api): edit code, then `docker compose build plane-api && docker compose up -d plane-api plane-worker plane-beat`.
+- Migrations: create migration, then `docker compose run --rm plane-migrator`.
+- Keep origin on http://localhost:3005; if you change host/port, update the VITE* build args and WEB_URL/CORS_ALLOWED_ORIGINS in compose.
 
-## 🌟 Features
+## Rehydrate on any machine
+- Install Docker + Compose.
+- Clone this repo.
+- Restore `./data/` from backup (or at least `data/postgres`, `data/minio`, and `data/backups/*`).
+- Set secrets in docker-compose.yaml (SECRET_KEY, MinIO creds, email if used).
+- Run `docker compose -f docker-compose.yaml up -d --build`.
+- Login at http://localhost:3005; if needed, recreate a superuser as noted above.
 
-- **Work Items**
-  Efficiently create and manage tasks with a robust rich text editor that supports file uploads. Enhance organization and tracking by adding sub-properties and referencing related issues.
+## Backups and restore
+- Postgres dumps land in `data/backups/db` (default every 24h). Tune `BACKUP_INTERVAL` env.
+- MinIO mirror lands in `data/backups/minio` (same interval).
+- Restore Postgres: stop writers, copy dump into container or mount, then `docker compose exec plane-db psql -U plane -d plane -f /backups/<dump>.sql`.
+- Restore uploads: stop `plane-minio`, replace `data/minio` from backup, start again.
 
-- **Cycles**
-  Maintain your team’s momentum with Cycles. Track progress effortlessly using burn-down charts and other insightful tools.
-
-- **Modules**
-  Simplify complex projects by dividing them into smaller, manageable modules.
-
-- **Views**
-  Customize your workflow by creating filters to display only the most relevant issues. Save and share these views with ease.
-
-- **Pages**
-  Capture and organize ideas using Plane Pages, complete with AI capabilities and a rich text editor. Format text, insert images, add hyperlinks, or convert your notes into actionable items.
-
-- **Analytics**
-  Access real-time insights across all your Plane data. Visualize trends, remove blockers, and keep your projects moving forward.
-
-## 🛠️ Local development
-
-See [CONTRIBUTING](./CONTRIBUTING.md)
-
-## ⚙️ Built with
-
-[![React Router](https://img.shields.io/badge/-React%20Router-CA4245?logo=react-router&style=for-the-badge&logoColor=white)](https://reactrouter.com/)
-[![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=green)](https://www.djangoproject.com/)
-[![Node JS](https://img.shields.io/badge/node.js-339933?style=for-the-badge&logo=Node.js&logoColor=white)](https://nodejs.org/en)
-
-## 📸 Screenshots
-
-  <p>
-    <a href="https://plane.so" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-work-items.webp"
-        alt="Plane Views"
-        width="100%"
-      />
-    </a>
-  </p>
-  <p>
-    <a href="https://plane.so" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-cycles.webp"
-        width="100%"
-      />
-    </a>
-  </p>
-  <p>
-    <a href="https://plane.so" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-modules.webp"
-        alt="Plane Cycles and Modules"
-        width="100%"
-      />
-    </a>
-  </p>
-  <p>
-    <a href="https://plane.so" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-views.webp"
-        alt="Plane Analytics"
-        width="100%"
-      />
-    </a>
-  </p>
-   <p>
-    <a href="https://plane.so" target="_blank">
-      <img
-        src="https://media.docs.plane.so/GitHub-readme/github-analytics.webp"
-        alt="Plane Pages"
-        width="100%"
-      />
-    </a>
-  </p>
-</p>
-
-## 📝 Documentation
-
-Explore Plane's [product documentation](https://docs.plane.so/) and [developer documentation](https://developers.plane.so/) to learn about features, setup, and usage.
-
-## ❤️ Community
-
-Join the Plane community on [GitHub Discussions](https://github.com/orgs/makeplane/discussions) and our [Discord server](https://discord.com/invite/A92xrEGCge). We follow a [Code of conduct](https://github.com/makeplane/plane/blob/master/CODE_OF_CONDUCT.md) in all our community channels.
-
-Feel free to ask questions, report bugs, participate in discussions, share ideas, request features, or showcase your projects. We’d love to hear from you!
-
-## 🛡️ Security
-
-If you discover a security vulnerability in Plane, please report it responsibly instead of opening a public issue. We take all legitimate reports seriously and will investigate them promptly. See [Security policy](https://github.com/makeplane/plane/blob/master/SECURITY.md) for more info.
-
-To disclose any security issues, please email us at security@plane.so.
-
-## 🤝 Contributing
-
-There are many ways you can contribute to Plane:
-
-- Report [bugs](https://github.com/makeplane/plane/issues/new?assignees=srinivaspendem%2Cpushya22&labels=%F0%9F%90%9Bbug&projects=&template=--bug-report.yaml&title=%5Bbug%5D%3A+) or submit [feature requests](https://github.com/makeplane/plane/issues/new?assignees=srinivaspendem%2Cpushya22&labels=%E2%9C%A8feature&projects=&template=--feature-request.yaml&title=%5Bfeature%5D%3A+).
-- Review the [documentation](https://docs.plane.so/) and submit [pull requests](https://github.com/makeplane/docs) to improve it—whether it's fixing typos or adding new content.
-- Talk or write about Plane or any other ecosystem integration and [let us know](https://discord.com/invite/A92xrEGCge)!
-- Show your support by upvoting [popular feature requests](https://github.com/makeplane/plane/issues).
-
-Please read [CONTRIBUTING.md](https://github.com/makeplane/plane/blob/master/CONTRIBUTING.md) for details on the process for submitting pull requests to us.
-
-### Repo activity
-
-![Plane Repo Activity](https://repobeats.axiom.co/api/embed/2523c6ed2f77c082b7908c33e2ab208981d76c39.svg "Repobeats analytics image")
-
-### We couldn't have done this without you.
-
-<a href="https://github.com/makeplane/plane/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=makeplane/plane" />
-</a>
+## Constraints and notes
+- Personal/local use only; do not enable Pro/SaaS flows or bypass license checks.
+- Keep browser origin on http://localhost:3005 to avoid CORS/cookie issues. If you change hosts/ports, update `VITE_*_BASE_URL` build args and `WEB_URL`/`CORS_ALLOWED_ORIGINS` in compose.
+- No external telemetry unless you opt in with your own keys.
 
 ## License
-
-This project is licensed under the [GNU Affero General Public License v3.0](https://github.com/makeplane/plane/blob/master/LICENSE.txt).
+Plane OSS is licensed under AGPLv3. See LICENSE.txt for details.
