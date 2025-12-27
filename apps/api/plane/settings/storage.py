@@ -29,6 +29,8 @@ class S3Storage(S3Boto3Storage):
         self.aws_region = os.environ.get("AWS_REGION")
         # Use the AWS_S3_ENDPOINT_URL environment variable for the endpoint URL
         self.aws_s3_endpoint_url = os.environ.get("AWS_S3_ENDPOINT_URL") or os.environ.get("MINIO_ENDPOINT_URL")
+        # Use the MINIO_EXTERNAL_ENDPOINT_URL environment variable for the external endpoint URL
+        self.minio_external_endpoint_url = os.environ.get("MINIO_EXTERNAL_ENDPOINT_URL")
         # Use the SIGNED_URL_EXPIRATION environment variable for the expiration time (default: 3600 seconds)
         self.signed_url_expiration = int(os.environ.get("SIGNED_URL_EXPIRATION", "3600"))
 
@@ -87,6 +89,11 @@ class S3Storage(S3Boto3Storage):
                 Conditions=conditions,
                 ExpiresIn=expiration,
             )
+            
+            # Replace the internal endpoint with the external endpoint if configured
+            if self.minio_external_endpoint_url and self.aws_s3_endpoint_url and response and "url" in response:
+                response["url"] = response["url"].replace(self.aws_s3_endpoint_url, self.minio_external_endpoint_url)
+
         # Handle errors
         except ClientError as e:
             print(f"Error generating presigned POST URL: {e}")
@@ -128,6 +135,11 @@ class S3Storage(S3Boto3Storage):
                 ExpiresIn=expiration,
                 HttpMethod=http_method,
             )
+
+            # Replace the internal endpoint with the external endpoint if configured
+            if self.minio_external_endpoint_url and self.aws_s3_endpoint_url and response:
+                response = response.replace(self.aws_s3_endpoint_url, self.minio_external_endpoint_url)
+
         except ClientError as e:
             log_exception(e)
             return None
