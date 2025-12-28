@@ -68,6 +68,7 @@ Once the containers are running, you can access:
 ### 6. Initial Setup & User Creation
 
 #### Option A: Use the Setup Wizard (Recommended)
+
 1. Open [http://localhost:3005](http://localhost:3005)
 2. If you see a setup/maintenance screen, mark the instance as ready:
    ```bash
@@ -90,23 +91,25 @@ Once the containers are running, you can access:
 4. Sign up with your email and create your account
 
 #### Option B: Create User via Script
+
 If you prefer to create a user directly:
 
 1. Create a user creation script:
+
    ```python
    # create_user.py
    import os, sys, django
    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
    sys.path.insert(0, '/code')
    django.setup()
-   
+
    from django.contrib.auth.hashers import make_password
    from plane.db.models import User
-   
+
    email = "your-email@example.com"
    username = "your_username"
    password = "your_password"
-   
+
    user = User.objects.create(
        email=email,
        username=username,
@@ -119,6 +122,7 @@ If you prefer to create a user directly:
    ```
 
 2. Copy and run the script:
+
    ```bash
    docker cp create_user.py plane-plane-api-1:/code/
    docker exec plane-plane-api-1 python /code/create_user.py
@@ -137,6 +141,7 @@ If you prefer to create a user directly:
 **Cause**: Instance not marked as setup complete (`is_setup_done: false`).
 
 **Solution**:
+
 ```bash
 # Mark instance as setup complete
 docker exec plane-plane-api-1 python -c "
@@ -165,6 +170,7 @@ Wait 15-20 seconds for the API to restart, then refresh your browser.
 **Cause**: User profile not marked as onboarded.
 
 **Solution**:
+
 ```bash
 # Mark user as onboarded
 docker exec plane-plane-api-1 python -c "
@@ -199,6 +205,7 @@ print('User onboarded')
 **Solution**: Already fixed in this repository with:
 
 1. **Nginx proxy configuration** (`edge.conf`):
+
 ```nginx
 location /uploads/ {
   rewrite ^/uploads/(.*)$ /$1 break;
@@ -209,11 +216,13 @@ location /uploads/ {
 ```
 
 2. **Environment variable** (`docker-compose.yaml`):
+
 ```yaml
 MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
 ```
 
 3. **MinIO bucket permissions**:
+
 ```bash
 # Set bucket to public download (already done in setup)
 docker exec plane-plane-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
@@ -221,7 +230,9 @@ docker exec plane-plane-minio-1 mc anonymous set download local/plane-uploads
 ```
 
 **If images still don't load after setup:**
+
 1. **Verify bucket permissions**:
+
 ```bash
 docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
 # Should show: Access permission for 'local/plane-uploads' is 'download'
@@ -230,6 +241,7 @@ docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
 2. **Hard refresh browser** (Ctrl+Shift+R) to clear cached URLs
 
 3. **Test proxy directly**:
+
 ```bash
 curl -I http://localhost:3005/uploads/plane-uploads/
 # Should return 200 OK
@@ -244,6 +256,7 @@ curl -I http://localhost:3005/uploads/plane-uploads/
 **Cause**: This is usually a misleading error. Check the API logs to verify if upload actually succeeded.
 
 **Solution**:
+
 ```bash
 # Check API logs for actual upload status
 docker logs plane-plane-api-1 --tail 50 | grep "POST /api/assets"
@@ -252,6 +265,7 @@ docker logs plane-plane-api-1 --tail 50 | grep "POST /api/assets"
 If you see `200` or `204` status codes, the upload succeeded despite the browser error. This is often a timing/race condition issue that doesn't affect functionality.
 
 **Prevention**: Ensure MinIO is healthy before uploading:
+
 ```bash
 docker ps | grep minio
 # Should show "healthy" status
@@ -264,6 +278,7 @@ docker ps | grep minio
 **Cause**: Default healthcheck settings were too conservative (60s start period).
 
 **Solution**: Already fixed in `docker-compose.yaml` with optimized healthcheck:
+
 - `start_period: 20s` (reduced from 60s)
 - `interval: 10s` (reduced from 30s)
 - `retries: 3` (reduced from 5)
@@ -275,6 +290,7 @@ docker ps | grep minio
 **Cause**: Legacy admin routing configuration.
 
 **Solution**: Already fixed in this repository:
+
 - `VITE_ADMIN_BASE_PATH` set to `""` in `docker-compose.yaml`
 - God-mode routing removed from `edge.conf`
 
@@ -283,6 +299,7 @@ docker ps | grep minio
 **Symptom**: API container fails to start with database connection errors.
 
 **Solution**:
+
 ```bash
 # Check database status
 docker logs plane-plane-db-1 --tail 20
@@ -299,6 +316,7 @@ docker ps | grep plane-db
 **Symptom**: Docker fails to start with "port already in use" errors.
 
 **Solution**:
+
 ```bash
 # Check what's using the ports
 netstat -ano | findstr :3005
@@ -311,11 +329,13 @@ netstat -ano | findstr :9000
 ## Useful Commands
 
 ### Check Container Status
+
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 ### View Logs
+
 ```bash
 # All services
 docker-compose logs -f
@@ -326,6 +346,7 @@ docker logs plane-plane-web-1 -f
 ```
 
 ### Restart Services
+
 ```bash
 # Restart all
 docker-compose restart
@@ -335,16 +356,19 @@ docker restart plane-plane-api-1
 ```
 
 ### Clear Cache
+
 ```bash
 docker exec plane-plane-api-1 python manage.py clear_cache
 ```
 
 ### Access Database
+
 ```bash
 docker exec -it plane-plane-db-1 psql -U plane -d plane
 ```
 
 ### Check Instance Configuration
+
 ```bash
 curl http://localhost:3005/api/instances/ | python -m json.tool
 ```
@@ -366,16 +390,19 @@ docker-compose down -v
 ## Backup & Restore
 
 ### Backup Database
+
 ```bash
 docker exec plane-plane-db-1 pg_dump -U plane plane > backup.sql
 ```
 
 ### Restore Database
+
 ```bash
 cat backup.sql | docker exec -i plane-plane-db-1 psql -U plane plane
 ```
 
 ### Backup Files (MinIO)
+
 Files are stored in `./data/minio/` directory. Simply copy this folder to backup uploaded files.
 
 ## Production Deployment Notes
@@ -401,9 +428,140 @@ For production deployments:
    - Set `BACKUP_INTERVAL` environment variable (default: 86400 seconds = 24 hours)
    - Backups are stored in `./data/backups/`
 
+## Bulk Import Guide
+
+### Accessing the Bulk Import UI
+
+1. Login to your workspace at http://localhost:3005
+2. On the workspace dashboard, click the **"Bulk import/export"** button in the header
+3. The modal provides complete API schema documentation with:
+   - Expandable sections for each entity type (Issues, States, Labels, Modules, Cycles)
+   - Copy-to-clipboard for endpoints and JSON payloads
+   - CSV template download
+   - Full schema JSON download
+
+### Creating an API Token
+
+1. Go to **Settings** → **API Tokens** (or navigate to `/settings/api-tokens/`)
+2. Click **Create Token**
+3. Give it a name and copy the generated token
+4. Use in requests: `Authorization: Bearer <your-token>`
+
+### Step-by-Step Project Import
+
+**Step 1: Get your workspace slug and project ID**
+
+```bash
+# List workspaces
+curl -H "Authorization: Bearer <token>" http://localhost:3005/api/users/me/workspaces/
+
+# List projects in workspace
+curl -H "Authorization: Bearer <token>" http://localhost:3005/api/workspaces/<slug>/projects/
+```
+
+**Step 2: Create States (optional - defaults exist)**
+
+```bash
+curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/states/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Code Review",
+    "color": "#3B82F6",
+    "group": "started"
+  }'
+```
+
+**Step 3: Create Labels**
+
+```bash
+curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/labels/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "bug",
+    "color": "#EF4444"
+  }'
+```
+
+**Step 4: Create Issues**
+
+```bash
+curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/issues/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Implement user authentication",
+    "description_html": "<p>Add OAuth2 login flow</p>",
+    "priority": "high",
+    "state_id": "<state-uuid-from-step-2>",
+    "label_ids": ["<label-uuid-from-step-3>"],
+    "start_date": "2025-12-29",
+    "target_date": "2026-01-15"
+  }'
+```
+
+### Bulk Import Script Example (PowerShell)
+
+```powershell
+$token = "your-api-token"
+$baseUrl = "http://localhost:3005"
+$workspace = "your-workspace-slug"
+$project = "your-project-uuid"
+
+$headers = @{
+  "Authorization" = "Bearer $token"
+  "Content-Type" = "application/json"
+}
+
+# Import issues from CSV
+$issues = Import-Csv "issues.csv"
+
+foreach ($row in $issues) {
+  $body = @{
+    name = $row.name
+    description_html = "<p>$($row.description)</p>"
+    priority = $row.priority
+    start_date = $row.start_date
+    target_date = $row.target_date
+  } | ConvertTo-Json
+
+  try {
+    $response = Invoke-RestMethod -Uri "$baseUrl/api/workspaces/$workspace/projects/$project/issues/" `
+      -Method POST -Headers $headers -Body $body
+    Write-Host "Created: $($row.name)" -ForegroundColor Green
+  } catch {
+    Write-Host "Failed: $($row.name) - $($_.Exception.Message)" -ForegroundColor Red
+  }
+}
+```
+
+### Import Order (Recommended)
+
+To avoid validation errors, import entities in this order:
+
+1. **States** - Custom workflow states
+2. **Labels** - Categorization tags
+3. **Modules** - Feature groupings
+4. **Cycles** - Time-boxed sprints
+5. **Issues (parents)** - Parent issues first
+6. **Issues (children)** - Child issues with `parent_id`
+7. **Links & Comments** - Attachments to issues
+
+### Reference Values
+
+**Priority:** `urgent`, `high`, `medium`, `low`, `none`
+
+**State Groups:** `backlog`, `unstarted`, `started`, `completed`, `cancelled`
+
+**Module Status:** `backlog`, `planned`, `in-progress`, `paused`, `completed`, `cancelled`
+
+See `BULK_IMPORT_FEATURE.md` for complete schema documentation.
+
 ## Support
 
 For issues not covered in this guide:
+
 - Check the [Plane Documentation](https://docs.plane.so)
 - Visit the [GitHub Issues](https://github.com/makeplane/plane/issues)
 - Join the [Plane Community](https://discord.com/invite/A92xrEGCge)
