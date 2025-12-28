@@ -84,7 +84,114 @@ GET /api/workspaces/projects/projects/{id}/intake-state/ 404
 
 ## Profile Picture Rendering Issues
 
-### Profile Picture Not Displaying
+### Profile Picture Not Displaying (403 Forbidden)
+
+**Symptoms:**
+- Profile pictures show as broken images
+- Browser console shows 403 Forbidden errors
+- URLs point to `http://localhost:3005/uploads/plane-uploads/...`
+
+**Root Cause:** MinIO storage not properly proxied through nginx edge server.
+
+**Solution:** Already fixed in this repository's `edge.conf`:
+```nginx
+location /uploads/ {
+  rewrite ^/uploads/(.*)$ /$1 break;
+  proxy_pass http://plane-minio:9000;
+  proxy_set_header Host $host;
+  # ... additional headers
+  client_max_body_size 100M;
+}
+```
+
+**Configuration in `docker-compose.yaml`:**
+```yaml
+MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
+```
+
+**Configuration in `edge.conf`:**
+```nginx
+location /uploads/ {
+  rewrite ^/uploads/(.*)$ /$1 break;
+  proxy_pass http://plane-minio:9000;
+  proxy_set_header Host plane-minio:9000;  # Critical: MinIO needs its own host for signature validation
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  client_max_body_size 100M;
+  proxy_buffering off;
+}
+```
+
+**MinIO Bucket Policy:**
+The `plane-uploads` bucket must have public download access:
+```bash
+docker exec plane-plane-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
+docker exec plane-plane-minio-1 mc anonymous set download local/plane-uploads
+```
+
+**If images still don't load:**
+
+1. **Verify the fix is applied:**
+```bash
+# Check edge config has correct Host header
+docker exec plane-plane-edge-1 cat /etc/nginx/conf.d/default.conf | grep -A 8 "location /uploads"
+# Should show: proxy_set_header Host plane-minio:9000;
+
+# Check bucket permissions
+docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
+# Should show: Access permission for 'local/plane-uploads' is 'download'
+
+# Test proxy
+curl -I http://localhost:3005/uploads/plane-uploads/
+# Should return: HTTP/1.1 200 OK
+```
+
+2. **Fix bucket permissions if needed:**
+```bash
+docker exec plane-plane-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
+docker exec plane-plane-minio-1 mc anonymous set download local/plane-uploads
+```
+
+3. **Hard refresh browser:**
+   - Press Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
+   - Or clear browser cache completely
+
+3. **Re-upload profile pictures:**
+   - Old uploads may have cached incorrect URLs
+   - Upload a new image to test the fix
+
+4. **Check MinIO is accessible:**
+```bash
+# MinIO should be healthy
+docker ps | grep minio
+
+# Test direct MinIO access
+curl http://localhost:9000/minio/health/live
+
+# Verify bucket permissions
+docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
+# Should show: Access permission for 'local/plane-uploads' is 'download'
+```
+
+**Key Configuration Details:**
+
+The fix requires three components working together:
+
+1. **Nginx Host Header**: Must be set to `plane-minio:9000` (not `$host`) for MinIO's AWS signature validation
+2. **Bucket Policy**: Must allow public download access
+3. **External Endpoint**: API configured to generate URLs pointing to `http://localhost:3005/uploads`
+
+### Profile Picture Upload Succeeds But Doesn't Display
+```bash
+# MinIO should be healthy
+docker ps | grep minio
+
+# Test direct MinIO access
+curl http://localhost:9000/minio/health/live
+```
+
+### Profile Picture Upload Succeeds But Doesn't Display
 
 **Symptoms:**
 - Profile picture uploads successfully (200/204 status codes in API logs)
@@ -299,6 +406,7 @@ If issues persist:
 | React Error #423 | Low | Cosmetic, no functional impact | Known issue in production builds |
 | WebSocket failures | Medium | Live collaboration won't work | Fixed in edge.conf |
 | 404 on /intake-state/ | Low | Missing optional feature | Not critical |
-| Profile pic rendering | Medium | Images may not display initially | Workaround: refresh/re-upload |
+| Profile pic 403 errors | High | Images don't display | **FIXED** - MinIO proxy in edge.conf |
+| Profile pic rendering | Medium | May need re-upload after fix | Workaround: re-upload images |
 
-Most issues are cosmetic or have workarounds. The core functionality of Plane works correctly.
+**Critical Fix Applied:** MinIO storage is now properly proxied through nginx at `/uploads/`, resolving all 403 Forbidden errors for uploaded images.

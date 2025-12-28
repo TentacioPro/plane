@@ -190,7 +190,54 @@ print('User onboarded')
 
 **Alternative**: Just complete the onboarding flow in the browser - it's quick and helps you set up your first workspace.
 
-### Issue 3: File Upload Errors (ERR_INTERNET_DISCONNECTED)
+### Issue 3: Profile Pictures and Images Not Loading
+
+**Symptom**: Profile pictures show as broken images, browser shows 403 Forbidden errors.
+
+**Root Cause**: MinIO storage not properly proxied through nginx, or bucket permissions not set.
+
+**Solution**: Already fixed in this repository with:
+
+1. **Nginx proxy configuration** (`edge.conf`):
+```nginx
+location /uploads/ {
+  rewrite ^/uploads/(.*)$ /$1 break;
+  proxy_pass http://plane-minio:9000;
+  proxy_set_header Host plane-minio:9000;  # Critical for MinIO signature validation
+  # ... other headers
+}
+```
+
+2. **Environment variable** (`docker-compose.yaml`):
+```yaml
+MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
+```
+
+3. **MinIO bucket permissions**:
+```bash
+# Set bucket to public download (already done in setup)
+docker exec plane-plane-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
+docker exec plane-plane-minio-1 mc anonymous set download local/plane-uploads
+```
+
+**If images still don't load after setup:**
+1. **Verify bucket permissions**:
+```bash
+docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
+# Should show: Access permission for 'local/plane-uploads' is 'download'
+```
+
+2. **Hard refresh browser** (Ctrl+Shift+R) to clear cached URLs
+
+3. **Test proxy directly**:
+```bash
+curl -I http://localhost:3005/uploads/plane-uploads/
+# Should return 200 OK
+```
+
+4. **Re-upload profile pictures** - old uploads may need to be re-uploaded
+
+### Issue 4: File Upload Errors (ERR_INTERNET_DISCONNECTED)
 
 **Symptom**: Browser console shows `ERR_INTERNET_DISCONNECTED` when uploading profile pictures or files.
 
@@ -210,7 +257,7 @@ docker ps | grep minio
 # Should show "healthy" status
 ```
 
-### Issue 4: Slow Container Startup
+### Issue 5: Slow Container Startup
 
 **Symptom**: Containers take a long time to become healthy, especially `plane-api`.
 
@@ -221,7 +268,7 @@ docker ps | grep minio
 - `interval: 10s` (reduced from 30s)
 - `retries: 3` (reduced from 5)
 
-### Issue 5: God-Mode Routing Issues
+### Issue 6: God-Mode Routing Issues
 
 **Symptom**: Application tries to route to `/god-mode` paths causing 404 errors.
 
@@ -231,7 +278,7 @@ docker ps | grep minio
 - `VITE_ADMIN_BASE_PATH` set to `""` in `docker-compose.yaml`
 - God-mode routing removed from `edge.conf`
 
-### Issue 6: Database Connection Errors
+### Issue 7: Database Connection Errors
 
 **Symptom**: API container fails to start with database connection errors.
 
@@ -247,7 +294,7 @@ docker restart plane-plane-db-1
 docker ps | grep plane-db
 ```
 
-### Issue 7: Port Conflicts
+### Issue 8: Port Conflicts
 
 **Symptom**: Docker fails to start with "port already in use" errors.
 

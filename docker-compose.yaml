@@ -48,7 +48,7 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "export PORT=8000 && export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4} && ./bin/docker-entrypoint-api.sh"
     environment:
-      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:9000
+      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
       UNSPLASH_ACCESS_KEY: ""
       DATABASE_URL: postgresql://plane:plane@plane-db:5432/plane
       REDIS_URL: redis://plane-redis:6379/0
@@ -102,7 +102,7 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "export GUNICORN_WORKERS=${GUNICORN_WORKERS:-2} && ./bin/docker-entrypoint-worker.sh"
     environment:
-      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:9000
+      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
       UNSPLASH_ACCESS_KEY: ""
       DATABASE_URL: postgresql://plane:plane@plane-db:5432/plane
       REDIS_URL: redis://plane-redis:6379/0
@@ -148,7 +148,7 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "export GUNICORN_WORKERS=${GUNICORN_WORKERS:-2} && ./bin/docker-entrypoint-beat.sh"
     environment:
-      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:9000
+      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
       UNSPLASH_ACCESS_KEY: ""
       DATABASE_URL: postgresql://plane:plane@plane-db:5432/plane
       REDIS_URL: redis://plane-redis:6379/0
@@ -194,7 +194,7 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "./bin/docker-entrypoint-migrator.sh"
     environment:
-      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:9000
+      MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
       UNSPLASH_ACCESS_KEY: ""
       DATABASE_URL: postgresql://plane:plane@plane-db:5432/plane
       REDIS_URL: redis://plane-redis:6379/0

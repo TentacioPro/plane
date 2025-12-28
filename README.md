@@ -12,12 +12,13 @@ Local-only Plane OSS stack for personal use. No SaaS dependencies, no upgrade ba
 
 ## Topology & ports
 - Single bridge network `plane-net`.
-- Edge/http entry: http://localhost:3005 (web + /api proxied to plane-api:8000/api/).
+- Edge/http entry: http://localhost:3005 (web + /api proxied to plane-api:8000/api/, /uploads proxied to MinIO).
 - API direct (debug): http://localhost:3006.
-- MinIO: S3 9000, console 9001.
+- MinIO: S3 9000, console 9001 (uploads accessible via edge proxy at /uploads/).
 
 ## Runtime & routing notes
 - Edge rewrites `/god-mode` and `/god-mode/*` back to `/` to avoid redirect loops; keep browser on 3005 origin for cookies.
+- Edge proxies `/uploads/` to MinIO for image/file access (fixes 403 Forbidden errors).
 - Edge waits for plane-web health and resolves upstream via Docker DNS to avoid stale IPs.
 - Health: Postgres `pg_isready`, Redis `redis-cli ping`, MinIO HTTP live, API TCP 8000. Migrator must finish before API is steady.
 ## Data layout
@@ -81,7 +82,27 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 - Logs (edge + api): `docker compose logs -f plane-edge plane-api`
 - Rebuild web after UI changes: `docker compose build plane-web && docker compose up -d plane-web plane-edge`
 - Rerun migrations: `docker compose run --rm plane-migrator`
+- Restart edge (after config changes): `docker restart plane-plane-edge-1`
 - Stop stack: `docker compose down`
+
+## Troubleshooting
+
+### Profile pictures not loading (403 Forbidden)
+- **Cause**: MinIO proxy misconfigured or bucket not public
+- **Fix**: Already applied in `edge.conf` - `/uploads/` proxies to MinIO with correct Host header
+- **Bucket policy**: `plane-uploads` set to public download access
+- **Test**: `curl -I http://localhost:3005/uploads/plane-uploads/` should return 200 OK
+- **Action**: Hard refresh browser (Ctrl+Shift+R) and re-upload images if needed
+- **Verify permissions**:
+  ```bash
+  docker exec plane-plane-minio-1 mc anonymous get local/plane-uploads
+  # Should show: download
+  ```
+
+### React console errors (#418, #423)
+- **Impact**: Cosmetic only, app functions normally
+- **Cause**: Production build hydration mismatches
+- **Action**: Safe to ignore unless app breaks
 
 ## Dev loop (local code edits)
 - Web changes (apps/web): edit code, then `docker compose build plane-web && docker compose up -d plane-web plane-edge`.
