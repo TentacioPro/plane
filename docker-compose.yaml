@@ -13,7 +13,7 @@ services:
         VITE_API_BASE_URL: http://localhost:3005
         VITE_WEB_BASE_URL: http://localhost:3005
         VITE_ADMIN_BASE_URL: http://localhost:3005
-        VITE_ADMIN_BASE_PATH: /god-mode
+        VITE_ADMIN_BASE_PATH: ""
         VITE_SPACE_BASE_URL: http://localhost:3005
         VITE_SPACE_BASE_PATH: /spaces
         VITE_LIVE_BASE_URL: http://localhost:3005
@@ -88,10 +88,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(3);\ntry: s.connect(('127.0.0.1',8000)); sys.exit(0)\nexcept Exception: sys.exit(1)\nfinally: s.close()\""]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 3
+      start_period: 20s
     logging: *default-logging
     networks:
       - plane-net

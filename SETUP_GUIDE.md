@@ -22,63 +22,289 @@ cd plane
 
 ### 2. Configure Environment Variables
 
-The project comes with a pre-configured `docker-compose.yaml` that sets up necessary environment variables. However, you should verify the following:
+The project comes with a pre-configured `docker-compose.yaml` that sets up necessary environment variables. Key configurations:
 
 - **MinIO (Object Storage)**:
-  - The `MINIO_EXTERNAL_ENDPOINT_URL` is set to `http://localhost:9000` to ensure file uploads work correctly from your browser.
-  - Access Key: `planeadmin`
-  - Secret Key: `planeadmin`
+  - Access Key: `minioadmin`
+  - Secret Key: `minioadmin`
+  - External endpoint is configured for localhost access
 
-- **Unsplash (Optional)**:
-  - If you want to use Unsplash for cover images, you can add your Access Key in `docker-compose.yaml` under `UNSPLASH_ACCESS_KEY`.
-  - If not configured, the Unsplash tab will be hidden in the UI.
+- **Admin Base Path**:
+  - Set to empty string (`""`) to avoid god-mode routing issues
+  - This allows direct access to the application without path rewrites
+
+- **API Healthcheck**:
+  - Optimized with reduced delays (20s start period, 10s interval)
+  - Ensures faster container startup
 
 ### 3. Start the Application
 
 Run the following command to start all services:
 
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
-This command will download the necessary Docker images and start the containers in detached mode.
+This command will build and start all containers. Initial build may take 5-10 minutes.
 
-### 4. Access the Application
+### 4. Wait for Services to be Ready
 
-Once the containers are running, you can access the application in your web browser:
+Monitor the startup process:
 
-- **Web App**: [http://localhost:3000](http://localhost:3000)
-- **MinIO Console**: [http://localhost:9001](http://localhost:9001) (User: `planeadmin`, Pass: `planeadmin`)
-- **API**: [http://localhost:8000](http://localhost:8000)
+```bash
+docker-compose logs -f plane-api
+```
 
-### 5. Initial Setup
+Wait until you see "Starting gunicorn" and worker processes booting. Press Ctrl+C to exit logs.
 
-1. Open [http://localhost:3000](http://localhost:3000).
-2. You will be prompted to create an account or sign in.
-3. Follow the on-screen instructions to set up your workspace.
+### 5. Access the Application
 
-## Troubleshooting
+Once the containers are running, you can access:
 
-### File Uploads Not Working
+- **Web App**: [http://localhost:3005](http://localhost:3005)
+- **MinIO Console**: [http://localhost:9001](http://localhost:9001) (User: `minioadmin`, Pass: `minioadmin`)
+- **API Direct**: [http://localhost:3006](http://localhost:3006)
 
-If you encounter issues with uploading images or files:
+### 6. Initial Setup & User Creation
 
-- Ensure `MINIO_EXTERNAL_ENDPOINT_URL` is set to `http://localhost:9000` in `docker-compose.yaml`.
-- Check if the `plane-minio` container is running and accessible at `http://localhost:9000`.
+#### Option A: Use the Setup Wizard (Recommended)
+1. Open [http://localhost:3005](http://localhost:3005)
+2. If you see a setup/maintenance screen, mark the instance as ready:
+   ```bash
+   docker exec plane-plane-api-1 python -c "
+   import os, sys, django
+   os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
+   sys.path.insert(0, '/code')
+   django.setup()
+   from plane.license.models import Instance
+   i = Instance.objects.last()
+   i.is_setup_done = True
+   i.is_signup_screen_visited = True
+   i.save()
+   print('Setup marked complete')
+   "
+   docker exec plane-plane-api-1 python manage.py clear_cache
+   docker restart plane-plane-api-1
+   ```
+3. Refresh the browser and you should see the login page
+4. Sign up with your email and create your account
 
-### Unsplash Images Not Loading
+#### Option B: Create User via Script
+If you prefer to create a user directly:
 
-- Verify that `UNSPLASH_ACCESS_KEY` is correctly set in `docker-compose.yaml`.
-- If you don't have a key, the Unsplash tab should be hidden automatically.
+1. Create a user creation script:
+   ```python
+   # create_user.py
+   import os, sys, django
+   os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
+   sys.path.insert(0, '/code')
+   django.setup()
+   
+   from django.contrib.auth.hashers import make_password
+   from plane.db.models import User
+   
+   email = "your-email@example.com"
+   username = "your_username"
+   password = "your_password"
+   
+   user = User.objects.create(
+       email=email,
+       username=username,
+       password=make_password(password),
+       is_active=True,
+       is_email_verified=True,
+       display_name=username,
+   )
+   print(f"User created: {user.email}")
+   ```
 
-### Database Connection Issues
+2. Copy and run the script:
+   ```bash
+   docker cp create_user.py plane-plane-api-1:/code/
+   docker exec plane-plane-api-1 python /code/create_user.py
+   ```
 
-- Ensure the `plane-db` container is running.
-- Check the logs: `docker-compose logs -f plane-db`
+3. Mark instance as setup (see Option A step 2)
+
+4. Login at [http://localhost:3005](http://localhost:3005)
+
+## Common Issues & Solutions
+
+### Issue 1: Login Page Not Showing (Setup/Maintenance Screen)
+
+**Symptom**: Browser shows setup wizard or maintenance screen instead of login page.
+
+**Cause**: Instance not marked as setup complete (`is_setup_done: false`).
+
+**Solution**:
+```bash
+# Mark instance as setup complete
+docker exec plane-plane-api-1 python -c "
+import os, sys, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
+sys.path.insert(0, '/code')
+django.setup()
+from plane.license.models import Instance
+i = Instance.objects.last()
+i.is_setup_done = True
+i.is_signup_screen_visited = True
+i.save()
+"
+
+# Clear cache and restart
+docker exec plane-plane-api-1 python manage.py clear_cache
+docker restart plane-plane-api-1
+```
+
+Wait 15-20 seconds for the API to restart, then refresh your browser.
+
+### Issue 2: Redirected to Onboarding After Login
+
+**Symptom**: After successful login, you're taken to onboarding flow instead of workspace.
+
+**Cause**: User profile not marked as onboarded.
+
+**Solution**:
+```bash
+# Mark user as onboarded
+docker exec plane-plane-api-1 python -c "
+import os, sys, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
+sys.path.insert(0, '/code')
+django.setup()
+from plane.db.models import User
+user = User.objects.get(email='your-email@example.com')
+profile = user.profile
+profile.is_onboarded = True
+profile.is_tour_completed = True
+profile.onboarding_step = {
+    'profile_complete': True,
+    'workspace_create': True,
+    'workspace_invite': True,
+    'workspace_join': True,
+}
+profile.save()
+print('User onboarded')
+"
+```
+
+**Alternative**: Just complete the onboarding flow in the browser - it's quick and helps you set up your first workspace.
+
+### Issue 3: File Upload Errors (ERR_INTERNET_DISCONNECTED)
+
+**Symptom**: Browser console shows `ERR_INTERNET_DISCONNECTED` when uploading profile pictures or files.
+
+**Cause**: This is usually a misleading error. Check the API logs to verify if upload actually succeeded.
+
+**Solution**:
+```bash
+# Check API logs for actual upload status
+docker logs plane-plane-api-1 --tail 50 | grep "POST /api/assets"
+```
+
+If you see `200` or `204` status codes, the upload succeeded despite the browser error. This is often a timing/race condition issue that doesn't affect functionality.
+
+**Prevention**: Ensure MinIO is healthy before uploading:
+```bash
+docker ps | grep minio
+# Should show "healthy" status
+```
+
+### Issue 4: Slow Container Startup
+
+**Symptom**: Containers take a long time to become healthy, especially `plane-api`.
+
+**Cause**: Default healthcheck settings were too conservative (60s start period).
+
+**Solution**: Already fixed in `docker-compose.yaml` with optimized healthcheck:
+- `start_period: 20s` (reduced from 60s)
+- `interval: 10s` (reduced from 30s)
+- `retries: 3` (reduced from 5)
+
+### Issue 5: God-Mode Routing Issues
+
+**Symptom**: Application tries to route to `/god-mode` paths causing 404 errors.
+
+**Cause**: Legacy admin routing configuration.
+
+**Solution**: Already fixed in this repository:
+- `VITE_ADMIN_BASE_PATH` set to `""` in `docker-compose.yaml`
+- God-mode routing removed from `edge.conf`
+
+### Issue 6: Database Connection Errors
+
+**Symptom**: API container fails to start with database connection errors.
+
+**Solution**:
+```bash
+# Check database status
+docker logs plane-plane-db-1 --tail 20
+
+# Restart database if needed
+docker restart plane-plane-db-1
+
+# Wait for healthy status
+docker ps | grep plane-db
+```
+
+### Issue 7: Port Conflicts
+
+**Symptom**: Docker fails to start with "port already in use" errors.
+
+**Solution**:
+```bash
+# Check what's using the ports
+netstat -ano | findstr :3005
+netstat -ano | findstr :3006
+netstat -ano | findstr :9000
+
+# Stop conflicting services or change ports in docker-compose.yaml
+```
+
+## Useful Commands
+
+### Check Container Status
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+### View Logs
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker logs plane-plane-api-1 -f
+docker logs plane-plane-web-1 -f
+```
+
+### Restart Services
+```bash
+# Restart all
+docker-compose restart
+
+# Restart specific service
+docker restart plane-plane-api-1
+```
+
+### Clear Cache
+```bash
+docker exec plane-plane-api-1 python manage.py clear_cache
+```
+
+### Access Database
+```bash
+docker exec -it plane-plane-db-1 psql -U plane -d plane
+```
+
+### Check Instance Configuration
+```bash
+curl http://localhost:3005/api/instances/ | python -m json.tool
+```
 
 ## Stopping the Application
 
-To stop the services, run:
+To stop the services:
 
 ```bash
 docker-compose down
@@ -89,3 +315,48 @@ To stop and remove volumes (WARNING: this deletes all data):
 ```bash
 docker-compose down -v
 ```
+
+## Backup & Restore
+
+### Backup Database
+```bash
+docker exec plane-plane-db-1 pg_dump -U plane plane > backup.sql
+```
+
+### Restore Database
+```bash
+cat backup.sql | docker exec -i plane-plane-db-1 psql -U plane plane
+```
+
+### Backup Files (MinIO)
+Files are stored in `./data/minio/` directory. Simply copy this folder to backup uploaded files.
+
+## Production Deployment Notes
+
+For production deployments:
+
+1. **Change default passwords** in `docker-compose.yaml`:
+   - Database password
+   - MinIO credentials
+   - SECRET_KEY
+
+2. **Configure email** for notifications:
+   - Set `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+
+3. **Set proper domain**:
+   - Update `WEB_URL`, `CORS_ALLOWED_ORIGINS` with your domain
+
+4. **Enable HTTPS**:
+   - Use a reverse proxy (nginx, Caddy) with SSL certificates
+   - Update all URLs to use `https://`
+
+5. **Configure backups**:
+   - Set `BACKUP_INTERVAL` environment variable (default: 86400 seconds = 24 hours)
+   - Backups are stored in `./data/backups/`
+
+## Support
+
+For issues not covered in this guide:
+- Check the [Plane Documentation](https://docs.plane.so)
+- Visit the [GitHub Issues](https://github.com/makeplane/plane/issues)
+- Join the [Plane Community](https://discord.com/invite/A92xrEGCge)
