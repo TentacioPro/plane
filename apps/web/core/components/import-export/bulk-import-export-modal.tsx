@@ -44,7 +44,7 @@ type SchemaSection = {
 };
 
 type ImportMode = "full" | "single";
-type ImportEntityType = "issue" | "state" | "label" | "module" | "cycle";
+type ImportEntityType = "issue" | "state" | "label" | "module" | "cycle" | "page";
 
 type ImportResult = {
   success: number;
@@ -57,6 +57,7 @@ type FullProjectData = {
   labels?: Record<string, unknown>[];
   modules?: Record<string, unknown>[];
   cycles?: Record<string, unknown>[];
+  pages?: Record<string, unknown>[];
   issues?: Record<string, unknown>[];
 };
 
@@ -77,12 +78,14 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       name: "string (required, max 255)",
       description_html: "string (HTML content)",
       priority: "urgent|high|medium|low|none",
-      state_id: "uuid (project state)",
-      parent_id: "uuid (parent issue in same project)",
-      assignee_ids: "uuid[] (project members)",
-      label_ids: "uuid[] (project labels)",
+      state: "uuid (project state)",
+      parent: "uuid (parent issue in same project)",
+      assignees: "uuid[] (project members)",
+      labels: "uuid[] (project labels)",
       start_date: "YYYY-MM-DD",
       target_date: "YYYY-MM-DD",
+      type_id: "uuid (issue type)",
+      estimate_point: "uuid (estimate point)",
     },
     example: {
       name: "Implement user authentication",
@@ -90,6 +93,8 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       priority: "high",
       start_date: "2025-12-29",
       target_date: "2026-01-15",
+      assignees: [],
+      labels: [],
     },
   },
   {
@@ -102,7 +107,9 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       name: "string (required, max 255)",
       description: "string",
       color: "string (hex, e.g. #60646C)",
-      group: "backlog|unstarted|started|completed|cancelled",
+      group: "backlog|unstarted|started|completed|cancelled|triage",
+      sequence: "float (optional, auto-calculated)",
+      default: "boolean (optional)",
     },
     example: {
       name: "Code Review",
@@ -120,6 +127,8 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       name: "string (required, max 255)",
       description: "string",
       color: "string (hex color)",
+      parent: "uuid (parent label id)",
+      sort_order: "float (optional)",
     },
     example: {
       name: "bug",
@@ -136,9 +145,12 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
     schema: {
       name: "string (required, max 255)",
       description: "string",
+      description_html: "string (HTML content)",
       start_date: "YYYY-MM-DD",
       target_date: "YYYY-MM-DD",
       status: "backlog|planned|in-progress|paused|completed|cancelled",
+      lead: "uuid (user id)",
+      members: "uuid[] (user ids)",
     },
     example: {
       name: "Authentication Module",
@@ -159,12 +171,34 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       description: "string",
       start_date: "ISO datetime",
       end_date: "ISO datetime",
+      owned_by: "uuid (user id, defaults to current user)",
+      timezone: "string (e.g. UTC, America/New_York)",
     },
     example: {
       name: "Sprint 1",
       description: "Initial development sprint",
       start_date: "2025-12-29T00:00:00Z",
       end_date: "2026-01-12T23:59:59Z",
+    },
+  },
+  {
+    id: "page",
+    title: "Page (Documentation)",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/pages/",
+    method: "POST",
+    description: "Create documentation pages",
+    schema: {
+      name: "string (required)",
+      description_html: "string (HTML content)",
+      access: "0 (public) | 1 (private)",
+      color: "string (hex color)",
+      parent: "uuid (parent page id)",
+    },
+    example: {
+      name: "Project Overview",
+      description_html: "<h1>Welcome</h1><p>Project documentation</p>",
+      access: 0,
+      color: "#3B82F6",
     },
   },
 ];
@@ -174,7 +208,8 @@ const IMPORT_ORDER = [
   { step: 2, entity: "Labels", reason: "Required for categorization" },
   { step: 3, entity: "Modules", reason: "Feature groupings" },
   { step: 4, entity: "Cycles", reason: "Time-boxed iterations" },
-  { step: 5, entity: "Issues", reason: "Work items" },
+  { step: 5, entity: "Pages", reason: "Documentation" },
+  { step: 6, entity: "Issues", reason: "Work items (can reference all above)" },
 ];
 
 export const BulkImportExportModal = observer(function BulkImportExportModal(props: TBulkImportExportModalProps) {
@@ -274,8 +309,11 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     const template = {
       _info: {
         description: "Full project import template with cross-references",
-        import_order: "states → labels → modules → cycles → issues",
+        import_order: "states → labels → modules → cycles → pages → issues",
         temp_id_usage: "Use temp_id to reference entities before they're created",
+        note: "Issues use 'state', 'labels', 'assignees' fields (not state_id, label_ids)",
+        module_cycle_linking:
+          "Issues can reference 'modules' (array) and 'cycle' (string) - linked via separate API calls after creation",
       },
       states: [
         { temp_id: "state-backlog", name: "Backlog", color: "#6B7280", group: "backlog" },
@@ -301,36 +339,58 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         },
       ],
+      pages: [
+        {
+          temp_id: "page-overview",
+          name: "Project Overview",
+          description_html: "<h1>Welcome</h1><p>This is the project overview page.</p>",
+          access: 0,
+        },
+        {
+          temp_id: "page-api-docs",
+          name: "API Documentation",
+          description_html: "<h1>API Reference</h1><p>REST API endpoints documentation.</p>",
+          access: 0,
+        },
+      ],
       issues: [
         {
           name: "Setup project structure",
           priority: "high",
           description_html: "<p>Initial project setup and configuration</p>",
-          state_id: "state-todo",
-          label_ids: ["label-feature"],
+          state: "state-todo",
+          labels: ["label-feature"],
+          modules: ["module-core"],
+          cycle: "cycle-sprint1",
+          assignees: [],
         },
         {
           name: "Implement user login",
           priority: "high",
           description_html: "<p>Add OAuth2 login flow</p>",
-          state_id: "state-progress",
-          label_ids: ["label-feature"],
-          module_id: "module-auth",
-          cycle_id: "cycle-sprint1",
+          state: "state-progress",
+          labels: ["label-feature"],
+          modules: ["module-auth"],
+          cycle: "cycle-sprint1",
+          assignees: [],
         },
         {
           name: "Fix login redirect bug",
           priority: "urgent",
           description_html: "<p>Users redirected to wrong page after login</p>",
-          state_id: "state-backlog",
-          label_ids: ["label-bug"],
+          state: "state-backlog",
+          labels: ["label-bug"],
+          modules: ["module-auth"],
+          assignees: [],
         },
         {
           name: "Write API documentation",
           priority: "medium",
           description_html: "<p>Document all REST endpoints</p>",
-          state_id: "state-backlog",
-          label_ids: ["label-docs"],
+          state: "state-backlog",
+          labels: ["label-docs"],
+          modules: ["module-core"],
+          assignees: [],
         },
       ],
     };
@@ -365,9 +425,21 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         },
       ],
+      page: [
+        {
+          name: "Project Overview",
+          description_html: "<h1>Welcome</h1><p>Project documentation page.</p>",
+          access: 0,
+        },
+        {
+          name: "API Documentation",
+          description_html: "<h1>API Reference</h1><p>REST API endpoints.</p>",
+          access: 0,
+        },
+      ],
       issue: [
-        { name: "Task 1", priority: "high", description_html: "<p>Description</p>" },
-        { name: "Task 2", priority: "medium", description_html: "<p>Description</p>" },
+        { name: "Task 1", priority: "high", description_html: "<p>Description</p>", assignees: [], labels: [] },
+        { name: "Task 2", priority: "medium", description_html: "<p>Description</p>", assignees: [], labels: [] },
       ],
     };
     const blob = new Blob([JSON.stringify(templates[entityType], null, 2)], { type: "application/json" });
@@ -394,7 +466,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
             const parsedObj = parsed as Record<string, unknown>;
             const keys = Object.keys(parsedObj);
-            const entityKeys = ["states", "labels", "modules", "cycles", "issues"];
+            const entityKeys = ["states", "labels", "modules", "cycles", "pages", "issues"];
             const hasEntityKeys = keys.some((k) => entityKeys.includes(k));
             if (hasEntityKeys) {
               setParsedData({ mode: "full", data: parsedObj as FullProjectData });
@@ -469,6 +541,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
       label: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/labels/`,
       module: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/`,
       cycle: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/`,
+      page: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/pages/`,
     };
     return endpoints[entityType];
   };
@@ -514,6 +587,8 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
 
     // ID mapping for cross-references (temp_id -> real_id)
     const idMap: Record<string, string> = {};
+    // Track issues that need module/cycle linking (post-creation)
+    const issueLinkQueue: { issueId: string; moduleIds: string[]; cycleId?: string }[] = [];
 
     if (parsedData.mode === "full") {
       const fullData = parsedData.data as FullProjectData;
@@ -524,6 +599,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
         { key: "labels", type: "label" },
         { key: "modules", type: "module" },
         { key: "cycles", type: "cycle" },
+        { key: "pages", type: "page" },
         { key: "issues", type: "issue" },
       ];
 
@@ -535,35 +611,81 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           for (const item of items) {
             // Replace temp IDs with real IDs for issues
             const processedItem = { ...item };
+            // Store module/cycle refs before removing them (they need separate API calls)
+            let moduleRefs: string[] = [];
+            let cycleRef: string | undefined;
+
             if (type === "issue") {
-              // Map state_id if it's a temp reference
+              // Map state if it's a temp reference (API uses 'state' not 'state_id')
+              if (processedItem.state && typeof processedItem.state === "string") {
+                const mappedId = idMap[processedItem.state];
+                if (mappedId) processedItem.state = mappedId;
+              }
+              // Also support state_id for backward compatibility
               if (processedItem.state_id && typeof processedItem.state_id === "string") {
                 const mappedId = idMap[processedItem.state_id];
-                if (mappedId) processedItem.state_id = mappedId;
+                if (mappedId) {
+                  processedItem.state = mappedId;
+                  delete processedItem.state_id;
+                }
               }
-              // Map label_ids
+              // Map labels (API uses 'labels' not 'label_ids')
+              if (Array.isArray(processedItem.labels)) {
+                processedItem.labels = (processedItem.labels as string[]).map((id) => idMap[id] || id);
+              }
+              // Also support label_ids for backward compatibility
               if (Array.isArray(processedItem.label_ids)) {
-                processedItem.label_ids = (processedItem.label_ids as string[]).map((id) => idMap[id] || id);
+                processedItem.labels = (processedItem.label_ids as string[]).map((id) => idMap[id] || id);
+                delete processedItem.label_ids;
               }
-              // Map module_id
-              if (processedItem.module_id && typeof processedItem.module_id === "string") {
-                const mappedId = idMap[processedItem.module_id];
-                if (mappedId) processedItem.module_id = mappedId;
+              // Map assignees (API uses 'assignees' not 'assignee_ids')
+              if (Array.isArray(processedItem.assignee_ids)) {
+                processedItem.assignees = processedItem.assignee_ids;
+                delete processedItem.assignee_ids;
               }
-              // Map cycle_id
-              if (processedItem.cycle_id && typeof processedItem.cycle_id === "string") {
-                const mappedId = idMap[processedItem.cycle_id];
-                if (mappedId) processedItem.cycle_id = mappedId;
-              }
-              // Map parent_id
+              // Map parent (API uses 'parent' not 'parent_id')
               if (processedItem.parent_id && typeof processedItem.parent_id === "string") {
                 const mappedId = idMap[processedItem.parent_id];
-                if (mappedId) processedItem.parent_id = mappedId;
+                if (mappedId) {
+                  processedItem.parent = mappedId;
+                  delete processedItem.parent_id;
+                }
+              }
+              if (processedItem.parent && typeof processedItem.parent === "string") {
+                const mappedId = idMap[processedItem.parent];
+                if (mappedId) processedItem.parent = mappedId;
+              }
+              // Extract module refs (need separate API call after issue creation)
+              if (Array.isArray(processedItem.module_ids)) {
+                moduleRefs = (processedItem.module_ids as string[]).map((id) => idMap[id] || id);
+                delete processedItem.module_ids;
+              }
+              if (processedItem.module_id && typeof processedItem.module_id === "string") {
+                const mappedId = idMap[processedItem.module_id] || processedItem.module_id;
+                moduleRefs = [mappedId];
+                delete processedItem.module_id;
+              }
+              if (Array.isArray(processedItem.modules)) {
+                moduleRefs = (processedItem.modules as string[]).map((id) => idMap[id] || id);
+                delete processedItem.modules;
+              }
+              // Extract cycle ref (need separate API call after issue creation)
+              if (processedItem.cycle_id && typeof processedItem.cycle_id === "string") {
+                cycleRef = idMap[processedItem.cycle_id] || processedItem.cycle_id;
+                delete processedItem.cycle_id;
+              }
+              if (processedItem.cycle && typeof processedItem.cycle === "string") {
+                cycleRef = idMap[processedItem.cycle] || processedItem.cycle;
+                delete processedItem.cycle;
               }
             }
             // Add project_id for cycles
             if (type === "cycle" && !processedItem.project_id) {
               processedItem.project_id = selectedProjectId;
+            }
+            // Pages use session auth (not API v1)
+            if (type === "page") {
+              // Pages don't need project_id in body, it's in the URL
             }
 
             try {
@@ -587,6 +709,10 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                 if (itemName && created.id) {
                   idMap[`${type}:${itemName}`] = created.id;
                 }
+                // Queue module/cycle linking for issues
+                if (type === "issue" && created.id && (moduleRefs.length > 0 || cycleRef)) {
+                  issueLinkQueue.push({ issueId: created.id, moduleIds: moduleRefs, cycleId: cycleRef });
+                }
               } else {
                 totalResult.failed++;
                 const errorData = (await response.json().catch(() => ({}))) as { detail?: string; error?: string };
@@ -597,6 +723,44 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
               totalResult.failed++;
               totalResult.errors.push(`${type}: ${err instanceof Error ? err.message : "Network error"}`);
             }
+          }
+        }
+      }
+
+      // Process module/cycle links for issues (post-creation)
+      for (const link of issueLinkQueue) {
+        // Link to modules
+        for (const moduleId of link.moduleIds) {
+          try {
+            const moduleIssueEndpoint = `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/${moduleId}/module-issues/`;
+            const response = await fetch(moduleIssueEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ issues: [link.issueId] }),
+            });
+            if (!response.ok) {
+              totalResult.errors.push(`module-link: Failed to link issue to module ${moduleId}`);
+            }
+          } catch {
+            totalResult.errors.push(`module-link: Network error linking issue to module`);
+          }
+        }
+        // Link to cycle
+        if (link.cycleId) {
+          try {
+            const cycleIssueEndpoint = `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/${link.cycleId}/cycle-issues/`;
+            const response = await fetch(cycleIssueEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ issues: [link.issueId] }),
+            });
+            if (!response.ok) {
+              totalResult.errors.push(`cycle-link: Failed to link issue to cycle ${link.cycleId}`);
+            }
+          } catch {
+            totalResult.errors.push(`cycle-link: Network error linking issue to cycle`);
           }
         }
       }
@@ -633,6 +797,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
       if (fullData.labels?.length) counts.push(`${fullData.labels.length} labels`);
       if (fullData.modules?.length) counts.push(`${fullData.modules.length} modules`);
       if (fullData.cycles?.length) counts.push(`${fullData.cycles.length} cycles`);
+      if (fullData.pages?.length) counts.push(`${fullData.pages.length} pages`);
       if (fullData.issues?.length) counts.push(`${fullData.issues.length} issues`);
       return counts.join(", ");
     }
@@ -720,7 +885,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                     </div>
                   </div>
                   {/* Single Entity Templates */}
-                  {(["state", "label", "module", "cycle", "issue"] as ImportEntityType[]).map((type) => (
+                  {(["state", "label", "module", "cycle", "page", "issue"] as ImportEntityType[]).map((type) => (
                     <div key={type} className="p-3 rounded-md border border-subtle-1 bg-layer-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -750,7 +915,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                         buttonClassName="text-xs h-7 px-2"
                         optionsClassName="w-28"
                       >
-                        {(["issue", "state", "label", "module", "cycle"] as ImportEntityType[]).map((type) => (
+                        {(["issue", "state", "label", "module", "cycle", "page"] as ImportEntityType[]).map((type) => (
                           <CustomSelect.Option key={type} value={type}>
                             <span className="capitalize">{type}</span>
                           </CustomSelect.Option>

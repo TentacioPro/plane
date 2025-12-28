@@ -165,12 +165,14 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 
 Click the **"Bulk import/export"** button on the workspace dashboard header (http://localhost:3005/projects/). The modal provides:
 
-- **Full Project Import**: Upload single JSON with all entities (states, labels, modules, cycles, issues)
+- **Full Project Import**: Upload single JSON with all entities (states, labels, modules, cycles, pages, issues)
 - **Single Entity Import**: Upload JSON array for specific entity type
 - **Template Downloads**: Pre-built templates for both scenarios
 - **Auto-detection**: Automatically detects import mode from file structure
 - **Progress Tracking**: Shows success/failure counts with error details
 - **API Schema Reference**: Expandable documentation for each endpoint
+- **Cross-Reference Support**: Use `temp_id` to reference entities before creation
+- **Module/Cycle Linking**: Issues can be linked to modules and cycles via separate API calls
 
 ### API-Based Import
 
@@ -254,6 +256,9 @@ Invoke-RestMethod -Uri "$baseUrl/api/v1/workspaces/$workspace/projects/$project/
 
 **Test Script:**
 Run `python test_bulk_import.py` to verify all APIs are working (requires `requests` package).
+
+**Fork Progress Import:**
+Run `python import_fork_progress.py` to import this fork's development progress into Plane itself as a meta-project tracking all enhancements.
 
 See `BULK_IMPORT_FEATURE.md` for complete schema documentation.
 

@@ -1,0 +1,492 @@
+{
+  "project": {
+    "id": "a852b5ee-16c4-4ef7-b73d-d6ad793803a8",
+    "name": "Plane Fork Progress",
+    "identifier": "FORK",
+    "description": "Meta-project tracking development progress of this Plane self-host fork"
+  },
+  "stats": {
+    "commits": 12,
+    "filesChanged": 17,
+    "linesAdded": 2837,
+    "linesDeleted": 445,
+    "netChange": 2392
+  },
+  "states": [
+    { "id": "state-1", "name": "Backlog", "color": "#6B7280", "group": "backlog" },
+    { "id": "state-2", "name": "Planned", "color": "#3B82F6", "group": "unstarted" },
+    { "id": "state-3", "name": "In Progress", "color": "#F59E0B", "group": "started" },
+    { "id": "state-4", "name": "Code Review", "color": "#8B5CF6", "group": "started" },
+    { "id": "state-5", "name": "Testing", "color": "#EC4899", "group": "started" },
+    { "id": "state-6", "name": "Done", "color": "#10B981", "group": "completed" },
+    { "id": "state-7", "name": "Deployed", "color": "#059669", "group": "completed" },
+    { "id": "state-8", "name": "Won't Fix", "color": "#EF4444", "group": "cancelled" }
+  ],
+  "labels": [
+    { "id": "label-1", "name": "enhancement", "color": "#3B82F6" },
+    { "id": "label-2", "name": "bugfix", "color": "#EF4444" },
+    { "id": "label-3", "name": "docker", "color": "#2496ED" },
+    { "id": "label-4", "name": "nginx", "color": "#009639" },
+    { "id": "label-5", "name": "api", "color": "#10B981" },
+    { "id": "label-6", "name": "ui", "color": "#F59E0B" },
+    { "id": "label-7", "name": "documentation", "color": "#8B5CF6" },
+    { "id": "label-8", "name": "infrastructure", "color": "#6B7280" },
+    { "id": "label-9", "name": "bulk-import", "color": "#EC4899" },
+    { "id": "label-10", "name": "storage", "color": "#F97316" },
+    { "id": "label-11", "name": "authentication", "color": "#14B8A6" },
+    { "id": "label-12", "name": "websocket", "color": "#6366F1" },
+    { "id": "label-13", "name": "critical", "color": "#DC2626" },
+    { "id": "label-14", "name": "script", "color": "#84CC16" }
+  ],
+  "modules": [
+    {
+      "id": "module-1",
+      "name": "Docker Infrastructure",
+      "description": "Docker Compose orchestration, service configuration, healthchecks",
+      "status": "completed",
+      "issueCount": 4
+    },
+    {
+      "id": "module-2",
+      "name": "Authentication & Setup",
+      "description": "User creation, instance setup automation, onboarding flow fixes",
+      "status": "completed",
+      "issueCount": 4
+    },
+    {
+      "id": "module-3",
+      "name": "Storage & Media",
+      "description": "MinIO S3-compatible storage, nginx proxy for uploads, bucket permissions",
+      "status": "completed",
+      "issueCount": 4
+    },
+    {
+      "id": "module-4",
+      "name": "Bulk Import Feature",
+      "description": "Full project import with cross-entity references, temp_id mapping",
+      "status": "completed",
+      "issueCount": 12
+    },
+    {
+      "id": "module-5",
+      "name": "Documentation",
+      "description": "Setup guides, troubleshooting documentation, API reference",
+      "status": "completed",
+      "issueCount": 7
+    },
+    {
+      "id": "module-6",
+      "name": "WebSocket & Real-time",
+      "description": "Live collaboration WebSocket support, nginx upgrade headers",
+      "status": "completed",
+      "issueCount": 1
+    }
+  ],
+  "cycles": [
+    {
+      "id": "cycle-1",
+      "name": "Initial Fork Setup (Dec 1-15)",
+      "description": "Docker infrastructure, data directory consolidation",
+      "startDate": "2024-12-01",
+      "endDate": "2024-12-15"
+    },
+    {
+      "id": "cycle-2",
+      "name": "Bug Fixes & Improvements (Dec 15-25)",
+      "description": "Storage fixes, authentication improvements",
+      "startDate": "2024-12-15",
+      "endDate": "2024-12-25"
+    },
+    {
+      "id": "cycle-3",
+      "name": "Bulk Import Feature (Dec 25-29)",
+      "description": "Full bulk import implementation",
+      "startDate": "2024-12-25",
+      "endDate": "2024-12-29"
+    },
+    {
+      "id": "cycle-4",
+      "name": "Documentation Sprint (Dec 27-29)",
+      "description": "Comprehensive documentation and guides",
+      "startDate": "2024-12-27",
+      "endDate": "2024-12-29"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Fork Overview",
+      "content": "<h1>Plane Self-Host Fork</h1><p>Personal fork optimized for local self-hosting.</p>"
+    },
+    {
+      "id": "page-2",
+      "name": "Changelog",
+      "content": "<h1>Changelog</h1><h2>2024-12-29</h2><ul><li>Bulk Import Feature complete</li></ul>"
+    },
+    {
+      "id": "page-3",
+      "name": "API Reference",
+      "content": "<h1>API Reference</h1><p>Use X-API-Key header for authentication.</p>"
+    },
+    { "id": "page-4", "name": "Setup Guide", "content": "<h1>Quick Setup</h1><pre>docker compose up -d --build</pre>" },
+    {
+      "id": "page-5",
+      "name": "Troubleshooting",
+      "content": "<h1>Troubleshooting</h1><p>Common issues and solutions.</p>"
+    }
+  ],
+  "commits": [
+    {
+      "hash": "b21774929e",
+      "message": "docs: Add comprehensive bulk import guide with API examples",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    {
+      "hash": "db0c66a263",
+      "message": "feat: add bulk import feature with full project and single entity support",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    {
+      "hash": "448df1e64c",
+      "message": "feat: Add comprehensive bulk import schema to import/export modal",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    {
+      "hash": "70a112671c",
+      "message": "fix: Complete MinIO image proxy configuration with public bucket access",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    {
+      "hash": "8b6813a1af",
+      "message": "fix: Add WebSocket support and comprehensive troubleshooting guide",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    {
+      "hash": "105f8ca44e",
+      "message": "fix: Docker setup improvements and comprehensive troubleshooting guide",
+      "author": "Abishek M",
+      "date": "2025-12-29"
+    },
+    { "hash": "963f87ec2a", "message": "docs: add setup guide", "author": "Abishek M", "date": "2025-12-28" },
+    {
+      "hash": "14bf0e0bdc",
+      "message": "fix: minio upload url, unsplash config, and lint errors",
+      "author": "Abishek M",
+      "date": "2025-12-28"
+    },
+    { "hash": "37f863b3ac", "message": "chore: ignore cookies.txt", "author": "Abishek M", "date": "2025-12-28" },
+    {
+      "hash": "b67ceb2c25",
+      "message": "Merge runbook into README and remove PMS doc",
+      "author": "Abishek M",
+      "date": "2025-12-27"
+    },
+    {
+      "hash": "05de75a773",
+      "message": "Add AI helper rules and clarify compose usage",
+      "author": "Abishek M",
+      "date": "2025-12-27"
+    },
+    {
+      "hash": "3883a53749",
+      "message": "Document data migration and fix compose build contexts",
+      "author": "Abishek M",
+      "date": "2025-12-27"
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue-1",
+      "name": "Set up Docker Compose with consolidated data directory",
+      "priority": "urgent",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["docker", "infrastructure", "critical"],
+      "module": "Docker Infrastructure"
+    },
+    {
+      "id": "issue-2",
+      "name": "Configure nginx edge proxy for API routing",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["nginx", "infrastructure"],
+      "module": "Docker Infrastructure"
+    },
+    {
+      "id": "issue-3",
+      "name": "Optimize healthcheck settings for faster startup",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["docker", "enhancement"],
+      "module": "Docker Infrastructure"
+    },
+    {
+      "id": "issue-4",
+      "name": "Configure Docker DNS resolver for service discovery",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["docker", "nginx"],
+      "module": "Docker Infrastructure"
+    },
+    {
+      "id": "issue-5",
+      "name": "Create user creation script (create_user.py)",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["authentication", "script"],
+      "module": "Authentication & Setup"
+    },
+    {
+      "id": "issue-6",
+      "name": "Create instance setup script (mark_setup_complete.py)",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["authentication", "script"],
+      "module": "Authentication & Setup"
+    },
+    {
+      "id": "issue-7",
+      "name": "Create onboarding completion script",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["authentication", "script"],
+      "module": "Authentication & Setup"
+    },
+    {
+      "id": "issue-8",
+      "name": "Fix god-mode routing redirect loops",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["bugfix", "authentication"],
+      "module": "Authentication & Setup"
+    },
+    {
+      "id": "issue-9",
+      "name": "Fix profile pictures 403 Forbidden error",
+      "priority": "urgent",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["bugfix", "storage", "critical"],
+      "module": "Storage & Media"
+    },
+    {
+      "id": "issue-10",
+      "name": "Configure MINIO_EXTERNAL_ENDPOINT_URL",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["storage", "docker"],
+      "module": "Storage & Media"
+    },
+    {
+      "id": "issue-11",
+      "name": "Set MinIO bucket to public download",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["storage", "infrastructure"],
+      "module": "Storage & Media"
+    },
+    {
+      "id": "issue-12",
+      "name": "Fix minio upload URL and unsplash config",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["bugfix", "storage"],
+      "module": "Storage & Media"
+    },
+    {
+      "id": "issue-13",
+      "name": "Add WebSocket support for live collaboration",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["websocket", "nginx", "enhancement"],
+      "module": "WebSocket & Real-time"
+    },
+    {
+      "id": "issue-14",
+      "name": "Create bulk import/export modal UI component",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["ui", "bulk-import", "enhancement"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-15",
+      "name": "Implement state import with temp_id mapping",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-16",
+      "name": "Implement label import with temp_id mapping",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-17",
+      "name": "Implement module import with status tracking",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-18",
+      "name": "Implement cycle import with project_id requirement",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-19",
+      "name": "Implement page import with HTML content",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-20",
+      "name": "Implement issue import with cross-references",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-21",
+      "name": "Add module-issue linking via separate API call",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import", "enhancement"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-22",
+      "name": "Add cycle-issue linking via separate API call",
+      "priority": "high",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["api", "bulk-import", "enhancement"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-23",
+      "name": "Create template downloads for all entity types",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["ui", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-24",
+      "name": "Add bulk import button to workspace header",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["ui", "bulk-import"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-25",
+      "name": "Create comprehensive SETUP_GUIDE.md",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-26",
+      "name": "Create TROUBLESHOOTING.md guide",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-27",
+      "name": "Create BULK_IMPORT_FEATURE.md documentation",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation", "bulk-import"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-28",
+      "name": "Update README.md with bulk import section",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation", "bulk-import"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-29",
+      "name": "Merge runbook into README and cleanup",
+      "priority": "low",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-30",
+      "name": "Add AI helper rules (AGENTS.md)",
+      "priority": "low",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["documentation"],
+      "module": "Documentation"
+    },
+    {
+      "id": "issue-31",
+      "name": "Create test_bulk_import.py test script",
+      "priority": "medium",
+      "state": "Deployed",
+      "stateColor": "#059669",
+      "labels": ["bulk-import", "script"],
+      "module": "Bulk Import Feature"
+    },
+    {
+      "id": "issue-32",
+      "name": "Create import_fork_progress.py meta-script",
+      "priority": "low",
+      "state": "In Progress",
+      "stateColor": "#F59E0B",
+      "labels": ["documentation", "bulk-import", "enhancement", "script"],
+      "module": "Documentation"
+    }
+  ]
+}

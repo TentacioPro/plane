@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for Plane Bulk Import APIs
-Tests all scenarios: states, labels, modules, cycles, issues
+Tests all scenarios: states, labels, modules, cycles, pages, issues
 """
 
 import requests
@@ -90,6 +90,18 @@ def test_create_cycle():
     response = session.post(url, json=data)
     return print_result("Create Cycle", response), response
 
+def test_create_page():
+    """Test creating a page (uses session auth, not API key)"""
+    # Pages use the regular API endpoint, not /api/v1/
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/pages/"
+    data = {
+        "name": f"Test Page {datetime.now().strftime('%H%M%S')}",
+        "description_html": "<h1>Test Page</h1><p>This is a test page created by bulk import test.</p>",
+        "access": 0  # 0 = public, 1 = private
+    }
+    response = session.post(url, json=data)
+    return print_result("Create Page", response), response
+
 def test_create_issue(state_id=None, label_id=None):
     """Test creating an issue"""
     url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"
@@ -98,15 +110,35 @@ def test_create_issue(state_id=None, label_id=None):
         "description_html": "<p>Test issue created by bulk import test</p>",
         "priority": "high",
         "start_date": datetime.now().strftime("%Y-%m-%d"),
-        "target_date": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        "target_date": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+        "assignees": [],
+        "labels": []
     }
     if state_id:
-        data["state_id"] = state_id
+        data["state"] = state_id
     if label_id:
-        data["label_ids"] = [label_id]
+        data["labels"] = [label_id]
     
     response = session.post(url, json=data)
     return print_result("Create Issue", response), response
+
+def test_create_issue_with_refs(state_id=None, label_id=None):
+    """Test creating an issue with state and label references"""
+    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"
+    data = {
+        "name": f"Test Issue Refs {datetime.now().strftime('%H%M%S')}",
+        "description_html": "<p>Test issue with references</p>",
+        "priority": "medium",
+        "assignees": [],
+        "labels": []
+    }
+    if state_id:
+        data["state"] = state_id
+    if label_id:
+        data["labels"] = [label_id]
+    
+    response = session.post(url, json=data)
+    return print_result("Create Issue (with refs)", response), response
 
 def test_get_existing_states():
     """Get existing states to use for issue creation"""
@@ -145,8 +177,8 @@ def test_full_project_import():
             }
         ],
         "issues": [
-            {"name": f"FP Task 1 {ts}", "priority": "high"},
-            {"name": f"FP Task 2 {ts}", "priority": "medium"}
+            {"name": f"FP Task 1 {ts}", "priority": "high", "assignees": [], "labels": []},
+            {"name": f"FP Task 2 {ts}", "priority": "medium", "assignees": [], "labels": []}
         ]
     }
     
@@ -204,15 +236,19 @@ def run_all_tests():
     success, _ = test_create_cycle()
     results["passed" if success else "failed"] += 1
     
-    print("\n[5] Testing Issue Creation (basic)...")
+    print("\n[5] Testing Page Creation...")
+    success, _ = test_create_page()
+    results["passed" if success else "failed"] += 1
+    
+    print("\n[6] Testing Issue Creation (basic)...")
     success, _ = test_create_issue()
     results["passed" if success else "failed"] += 1
     
-    print("\n[6] Testing Issue Creation (with state & label)...")
-    success, _ = test_create_issue(state_id=state_id, label_id=label_id)
+    print("\n[7] Testing Issue Creation (with state & label)...")
+    success, _ = test_create_issue_with_refs(state_id=state_id, label_id=label_id)
     results["passed" if success else "failed"] += 1
     
-    print("\n[7] Testing Full Project Import...")
+    print("\n[8] Testing Full Project Import...")
     success = test_full_project_import()
     results["passed" if success else "failed"] += 1
     
