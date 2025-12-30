@@ -59,6 +59,7 @@ export const AuthPasswordForm = observer(function AuthPasswordForm(props: Props)
   const [isPasswordInputFocused, setIsPasswordInputFocused] = useState(false);
   const [isRetryPasswordInputFocused, setIsRetryPasswordInputFocused] = useState(false);
   const [isBannerMessage, setBannerMessage] = useState(false);
+  const [bypassPasswordValidation, setBypassPasswordValidation] = useState(false);
 
   const handleShowPassword = (key: keyof typeof showPassword) =>
     setShowPassword((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -93,6 +94,7 @@ export const AuthPasswordForm = observer(function AuthPasswordForm(props: Props)
         )}
       </div>
     ) : (
+      !bypassPasswordValidation &&
       passwordFormData.password.length > 0 &&
       getPasswordStrength(passwordFormData.password) != E_PASSWORD_STRENGTH.STRENGTH_VALID && (
         <PasswordStrengthIndicator password={passwordFormData.password} isFocused={isPasswordInputFocused} />
@@ -150,7 +152,7 @@ export const AuthPasswordForm = observer(function AuthPasswordForm(props: Props)
           await handleCSRFToken();
           const isPasswordValid =
             mode === EAuthModes.SIGN_UP
-              ? getPasswordStrength(passwordFormData.password) === E_PASSWORD_STRENGTH.STRENGTH_VALID
+              ? bypassPasswordValidation || getPasswordStrength(passwordFormData.password) === E_PASSWORD_STRENGTH.STRENGTH_VALID
               : true;
           if (isPasswordValid) {
             setIsSubmitting(true);
@@ -247,6 +249,21 @@ export const AuthPasswordForm = observer(function AuthPasswordForm(props: Props)
           </div>
           {passwordSupport}
         </div>
+
+        {mode === EAuthModes.SIGN_UP && (
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="bypass-password-validation"
+              checked={bypassPasswordValidation}
+              onChange={(e) => setBypassPasswordValidation(e.target.checked)}
+              className="size-4 rounded border-strong accent-accent-primary cursor-pointer"
+            />
+            <label htmlFor="bypass-password-validation" className="text-13 text-tertiary cursor-pointer select-none">
+              Skip password strength check (self-hosted)
+            </label>
+          </div>
+        )}
 
         {mode === EAuthModes.SIGN_UP && (
           <div className="space-y-1">

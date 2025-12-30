@@ -78,6 +78,10 @@ class Adapter:
 
     def validate_password(self, email):
         """Validate password strength"""
+        # Allow bypassing password validation for self-hosted instances
+        bypass_validation = os.environ.get("BYPASS_PASSWORD_VALIDATION", "0") == "1"
+        if bypass_validation:
+            return
         results = zxcvbn(self.code)
         if results["score"] < 3:
             raise AuthenticationException(

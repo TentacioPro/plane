@@ -26,6 +26,17 @@ python manage.py register_instance "$MACHINE_SIGNATURE"
 # Load the configuration variable
 python manage.py configure_instance
 
+# Auto-mark instance as setup complete (skip getting-started page for self-hosted)
+python manage.py shell -c "
+from plane.license.models import Instance
+i = Instance.objects.last()
+if i and not i.is_setup_done:
+    i.is_setup_done = True
+    i.is_signup_screen_visited = True
+    i.save()
+    print('Instance auto-marked as setup complete')
+"
+
 # Create the default bucket
 python manage.py create_bucket
 

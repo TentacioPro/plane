@@ -67,10 +67,17 @@ Once the containers are running, you can access:
 
 ### 6. Initial Setup & User Creation
 
-#### Option A: Use the Setup Wizard (Recommended)
+#### Automatic Setup (Default)
+
+This fork automatically marks the instance as setup complete on API startup. Simply:
 
 1. Open [http://localhost:3005](http://localhost:3005)
-2. If you see a setup/maintenance screen, mark the instance as ready:
+2. You should see the **Sign Up / Login** page directly
+3. Create your account (password validation is bypassed by default)
+
+#### Manual Setup (If Needed)
+
+If you still see a setup/maintenance screen:
    ```bash
    docker exec plane-plane-api-1 python -c "
    import os, sys, django
@@ -389,7 +396,33 @@ docker-compose down -v
 
 ## Backup & Restore
 
-### Backup Database
+### Full Backup (Recommended)
+
+Use the backup container for comprehensive backups:
+
+```powershell
+# Create full backup (DB + uploads + metadata)
+docker compose --profile backup run --rm plane-backup /backup.sh
+
+# List available backups
+docker compose --profile backup run --rm plane-backup ls -la /backup/output/
+
+# Restore from backup
+docker compose --profile backup run --rm plane-backup /restore.sh plane_full_backup_YYYYMMDD_HHMMSS.tar.gz
+
+# Restart after restore
+docker compose restart plane-api
+docker exec plane-plane-api-1 python manage.py clear_cache
+```
+
+**Backup location:** `data/backups/full/`
+
+**Contents:**
+- Full PostgreSQL dump
+- All entities as JSON (users, projects, issues, modules, cycles, pages)
+- MinIO uploads (profile pictures, attachments)
+
+### Quick Database Backup
 
 ```bash
 docker exec plane-plane-db-1 pg_dump -U plane plane > backup.sql
@@ -453,17 +486,17 @@ For production deployments:
 
 ```bash
 # List workspaces
-curl -H "Authorization: Bearer <token>" http://localhost:3005/api/users/me/workspaces/
+curl -H "X-API-Key: <your-api-token>" http://localhost:3005/api/v1/users/me/workspaces/
 
 # List projects in workspace
-curl -H "Authorization: Bearer <token>" http://localhost:3005/api/workspaces/<slug>/projects/
+curl -H "X-API-Key: <your-api-token>" http://localhost:3005/api/v1/workspaces/<slug>/projects/
 ```
 
 **Step 2: Create States (optional - defaults exist)**
 
 ```bash
-curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/states/ \
-  -H "Authorization: Bearer <token>" \
+curl -X POST http://localhost:3005/api/v1/workspaces/<slug>/projects/<project_id>/states/ \
+  -H "X-API-Key: <your-api-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Code Review",
@@ -475,8 +508,8 @@ curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/s
 **Step 3: Create Labels**
 
 ```bash
-curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/labels/ \
-  -H "Authorization: Bearer <token>" \
+curl -X POST http://localhost:3005/api/v1/workspaces/<slug>/projects/<project_id>/labels/ \
+  -H "X-API-Key: <your-api-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "bug",
@@ -487,15 +520,15 @@ curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/l
 **Step 4: Create Issues**
 
 ```bash
-curl -X POST http://localhost:3005/api/workspaces/<slug>/projects/<project_id>/issues/ \
-  -H "Authorization: Bearer <token>" \
+curl -X POST http://localhost:3005/api/v1/workspaces/<slug>/projects/<project_id>/issues/ \
+  -H "X-API-Key: <your-api-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Implement user authentication",
     "description_html": "<p>Add OAuth2 login flow</p>",
     "priority": "high",
-    "state_id": "<state-uuid-from-step-2>",
-    "label_ids": ["<label-uuid-from-step-3>"],
+    "state": "<state-uuid-from-step-2>",
+    "labels": ["<label-uuid-from-step-3>"],
     "start_date": "2025-12-29",
     "target_date": "2026-01-15"
   }'
@@ -510,7 +543,7 @@ $workspace = "your-workspace-slug"
 $project = "your-project-uuid"
 
 $headers = @{
-  "Authorization" = "Bearer $token"
+  "X-API-Key" = $token
   "Content-Type" = "application/json"
 }
 
@@ -562,6 +595,8 @@ See `BULK_IMPORT_FEATURE.md` for complete schema documentation.
 
 For issues not covered in this guide:
 
+- Check `DEV_FEATURES.md` for custom fork features
+- Check `BULK_IMPORT_FEATURE.md` for import/export documentation
 - Check the [Plane Documentation](https://docs.plane.so)
 - Visit the [GitHub Issues](https://github.com/makeplane/plane/issues)
 - Join the [Plane Community](https://discord.com/invite/A92xrEGCge)

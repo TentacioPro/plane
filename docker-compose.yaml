@@ -48,6 +48,7 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "export PORT=8000 && export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4} && ./bin/docker-entrypoint-api.sh"
     environment:
+      BYPASS_PASSWORD_VALIDATION: "1"
       MINIO_EXTERNAL_ENDPOINT_URL: http://localhost:3005/uploads
       UNSPLASH_ACCESS_KEY: ""
       DATABASE_URL: postgresql://plane:plane@plane-db:5432/plane
@@ -344,6 +345,38 @@ services:
       - ./data/backups/minio:/backups
     restart: unless-stopped
     logging: *default-logging
+    networks:
+      - plane-net
+
+  # Manual full backup/restore container
+  # Usage:
+  #   Backup:  docker compose run --rm plane-backup /backup.sh
+  #   Restore: docker compose run --rm plane-backup /restore.sh <backup_file.tar.gz>
+  #   List:    docker compose run --rm plane-backup ls -la /backup/output/
+  plane-backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    depends_on:
+      plane-db:
+        condition: service_healthy
+      plane-minio:
+        condition: service_healthy
+    environment:
+      DB_HOST: plane-db
+      DB_PORT: 5432
+      DB_USER: plane
+      DB_PASSWORD: plane
+      DB_NAME: plane
+      MINIO_HOST: plane-minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: plane-uploads
+    volumes:
+      - ./data/backups/full:/backup/output
+    profiles:
+      - backup
     networks:
       - plane-net
 

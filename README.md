@@ -84,11 +84,12 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 
 ## First login / auth fixes
 
+- **Auto-setup**: Instance is automatically marked as setup complete on API startup (no more getting-started page).
+- **Password bypass**: Set `BYPASS_PASSWORD_VALIDATION=1` in docker-compose.yaml to skip password strength checks.
 - Create superuser if none exists:
-  `docker exec -it plane-selfhost-plane-api-1 python manage.py createsuperuser`
+  `docker exec -it plane-plane-api-1 python manage.py createsuperuser`
 - If stuck on welcome/401 loop, run:
-  `docker exec plane-selfhost-plane-api-1 python manage.py create_instance_admin <email>`
-  `docker exec plane-selfhost-plane-api-1 python manage.py shell -c "from plane.license.models import Instance; i=Instance.objects.first(); i.is_setup_done=True; i.is_signup_screen_visited=True; i.domain='http://localhost:3005'; i.save();"`
+  `docker exec plane-plane-api-1 python manage.py create_instance_admin <email>`
 - Edge already rewrites `/god-mode` back to `/` to keep routes normal.
 
 ## Common ops
@@ -138,8 +139,36 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 
 ## Backups and restore
 
+### Automatic Backups
 - Postgres dumps land in `data/backups/db` (default every 24h). Tune `BACKUP_INTERVAL` env.
 - MinIO mirror lands in `data/backups/minio` (same interval).
+
+### Full Manual Backup (Recommended)
+Use the backup container for comprehensive backups including all data:
+
+```powershell
+# Create full backup (DB + uploads + metadata JSON)
+docker compose --profile backup run --rm plane-backup /backup.sh
+
+# List available backups
+docker compose --profile backup run --rm plane-backup ls -la /backup/output/
+
+# Restore from backup (after clean reset)
+docker compose --profile backup run --rm plane-backup /restore.sh plane_full_backup_YYYYMMDD_HHMMSS.tar.gz
+
+# Restart after restore
+docker compose restart plane-api
+docker exec plane-plane-api-1 python manage.py clear_cache
+```
+
+**Backup contents:**
+- `database/plane_db.sql` - Full PostgreSQL dump
+- `metadata/*.json` - All entities as JSON (users, projects, issues, modules, cycles, pages, etc.)
+- `uploads/` - MinIO files (profile pictures, attachments)
+
+**Output location:** `data/backups/full/`
+
+### Manual Restore (Legacy)
 - Restore Postgres: stop writers, copy dump into container or mount, then `docker compose exec plane-db psql -U plane -d plane -f /backups/<dump>.sql`.
 - Restore uploads: stop `plane-minio`, replace `data/minio` from backup, start again.
 
@@ -183,13 +212,16 @@ Use the REST API to bulk-populate your workspace. Auth required: `X-API-Key: <ap
 1. States → 2. Labels → 3. Modules → 4. Cycles → 5. Issues
 
 **Key Endpoints (API v1):**
-| Entity | Endpoint |
-|--------|----------|
-| State | `POST /api/v1/workspaces/{slug}/projects/{project_id}/states/` |
-| Label | `POST /api/v1/workspaces/{slug}/projects/{project_id}/labels/` |
-| Module | `POST /api/v1/workspaces/{slug}/projects/{project_id}/modules/` |
-| Cycle | `POST /api/v1/workspaces/{slug}/projects/{project_id}/cycles/` |
-| Issue | `POST /api/v1/workspaces/{slug}/projects/{project_id}/issues/` |
+| Entity | Endpoint | Auth |
+|--------|----------|------|
+| State | `POST /api/v1/workspaces/{slug}/projects/{project_id}/states/` | API Key |
+| Label | `POST /api/v1/workspaces/{slug}/projects/{project_id}/labels/` | API Key |
+| Module | `POST /api/v1/workspaces/{slug}/projects/{project_id}/modules/` | API Key |
+| Cycle | `POST /api/v1/workspaces/{slug}/projects/{project_id}/cycles/` | API Key |
+| Page | `POST /api/workspaces/{slug}/projects/{project_id}/pages/` | Session |
+| Issue | `POST /api/v1/workspaces/{slug}/projects/{project_id}/issues/` | API Key |
+| Module-Issue | `POST /api/v1/.../modules/{module_id}/module-issues/` | API Key |
+| Cycle-Issue | `POST /api/v1/.../cycles/{cycle_id}/cycle-issues/` | API Key |
 
 **Full Project Template:**
 
@@ -220,9 +252,9 @@ Use the REST API to bulk-populate your workspace. Auth required: `X-API-Key: <ap
   "name": "Implement feature",
   "description_html": "<p>Feature description</p>",
   "priority": "high",
-  "state_id": "<state-uuid>",
-  "assignee_ids": ["<user-uuid>"],
-  "label_ids": ["<label-uuid>"],
+  "state": "<state-uuid>",
+  "assignees": ["<user-uuid>"],
+  "labels": ["<label-uuid>"],
   "start_date": "2025-12-29",
   "target_date": "2026-01-15"
 }
@@ -269,6 +301,16 @@ See `BULK_IMPORT_FEATURE.md` for complete schema documentation.
 - No external telemetry unless you opt in with your own keys.
 - Compose files: prefer `docker-compose.yaml`. `docker-compose.yml` and `docker-compose-local.yml` are legacy/dev; only use them explicitly with `-f` to avoid the wrong stack.
 - AI helper rules live in .github/instructions/Copilot.instructions.md.
+
+## Custom Features (This Fork)
+
+See `DEV_FEATURES.md` for complete documentation of all customizations:
+
+- **Password validation bypass** - Skip strength checks for self-hosted convenience
+- **Auto instance setup** - No more getting-started page on fresh installs
+- **Full backup container** - Comprehensive backup/restore with `plane-backup`
+- **Bulk import modal** - UI for importing all entity types with cross-references
+- **God-mode bypass** - Admin panel routing disabled to prevent redirect loops
 
 ## License
 
