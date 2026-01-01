@@ -2,6 +2,34 @@
 
 This guide provides step-by-step instructions to set up the Plane project management system on your local machine using Docker.
 
+## Quick Start (New Machine)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/TentacioPro/plane.git
+   cd plane
+   ```
+
+2. **Start all services:**
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Wait for services to be ready** (2-3 minutes):
+   ```bash
+   docker compose logs -f plane-api
+   # Wait for "Starting gunicorn" message, then Ctrl+C
+   ```
+
+4. **Access the application:**
+   - Open http://localhost:3005
+   - Sign up with any email/password (password validation is bypassed)
+   - Create your first workspace
+
+That's it! The instance is automatically configured on startup.
+
+---
+
 ## Prerequisites
 
 Ensure you have the following installed on your system:

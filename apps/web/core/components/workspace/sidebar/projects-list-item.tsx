@@ -8,7 +8,7 @@ import { observer } from "mobx-react";
 import { useParams, useRouter } from "next/navigation";
 import { createRoot } from "react-dom/client";
 import scrollIntoView from "smooth-scroll-into-view-if-needed";
-import { Settings, Share2, LogOut, MoreHorizontal } from "lucide-react";
+import { Settings, Share2, LogOut, MoreHorizontal, Trash2 } from "lucide-react";
 import { Disclosure, Transition } from "@headlessui/react";
 // plane imports
 import { EUserPermissions, EUserPermissionsLevel, MEMBER_TRACKER_ELEMENTS } from "@plane/constants";
@@ -24,6 +24,7 @@ import { cn } from "@plane/utils";
 import { DEFAULT_TAB_KEY, getTabUrl } from "@/components/navigation/tab-navigation-utils";
 import { useTabPreferences } from "@/components/navigation/use-tab-preferences";
 import { LeaveProjectModal } from "@/components/project/leave-project-modal";
+import { DeleteProjectModal } from "@/components/project/delete-project-modal";
 import { PublishProjectModal } from "@/components/project/publish-project/modal";
 // hooks
 import { useAppTheme } from "@/hooks/store/use-app-theme";
@@ -75,6 +76,7 @@ export const SidebarProjectsListItem = observer(function SidebarProjectsListItem
 
   // states
   const [leaveProjectModalOpen, setLeaveProjectModal] = useState(false);
+  const [deleteProjectModalOpen, setDeleteProjectModal] = useState(false);
   const [publishModalOpen, setPublishModal] = useState(false);
   const [isMenuActive, setIsMenuActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -274,6 +276,7 @@ export const SidebarProjectsListItem = observer(function SidebarProjectsListItem
     <>
       <PublishProjectModal isOpen={publishModalOpen} projectId={projectId} onClose={() => setPublishModal(false)} />
       <LeaveProjectModal project={project} isOpen={leaveProjectModalOpen} onClose={() => setLeaveProjectModal(false)} />
+      <DeleteProjectModal project={project} isOpen={deleteProjectModalOpen} onClose={() => setDeleteProjectModal(false)} />
       <Disclosure key={`${project.id}_${URLProjectId}`} defaultOpen={isProjectListOpen} as="div">
         <div
           id={`sidebar-${projectId}-${projectListType}`}
@@ -425,6 +428,17 @@ export const SidebarProjectsListItem = observer(function SidebarProjectsListItem
                       <span>{t("settings")}</span>
                     </div>
                   </CustomMenu.MenuItem>
+                  {/* delete project - admin only */}
+                  {isAdmin && (
+                    <CustomMenu.MenuItem
+                      onClick={() => setDeleteProjectModal(true)}
+                    >
+                      <div className="flex items-center justify-start gap-2 cursor-pointer text-danger-primary">
+                        <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
+                        <span>{t("delete_project")}</span>
+                      </div>
+                    </CustomMenu.MenuItem>
+                  )}
                   {/* leave project */}
                   {!isAuthorized && (
                     <CustomMenu.MenuItem

@@ -16,12 +16,11 @@ import { useAppRouter } from "@/hooks/use-app-router";
 
 type DeleteProjectModal = {
   isOpen: boolean;
-  project: IProject;
+  project: Pick<IProject, "id" | "name">;
   onClose: () => void;
 };
 
 const defaultValues = {
-  projectName: "",
   confirmDelete: "",
 };
 
@@ -41,7 +40,7 @@ export function DeleteProjectModal(props: DeleteProjectModal) {
     watch,
   } = useForm({ defaultValues });
 
-  const canDelete = watch("projectName") === project?.name && watch("confirmDelete") === "delete my project";
+  const canDelete = watch("confirmDelete") === "delete";
 
   const handleClose = () => {
     const timer = setTimeout(() => {
@@ -101,35 +100,12 @@ export function DeleteProjectModal(props: DeleteProjectModal) {
         <span>
           <p className="text-13 leading-7 text-secondary">
             Are you sure you want to delete project <span className="break-words font-semibold">{project?.name}</span>?
-            All of the data related to the project will be permanently removed. This action cannot be undone
+            All of the data related to the project will be permanently removed. This action cannot be undone.
           </p>
         </span>
         <div className="text-secondary">
-          <p className="break-words text-13 ">
-            Enter the project name <span className="font-medium text-primary">{project?.name}</span> to continue:
-          </p>
-          <Controller
-            control={control}
-            name="projectName"
-            render={({ field: { value, onChange, ref } }) => (
-              <Input
-                id="projectName"
-                name="projectName"
-                type="text"
-                value={value}
-                onChange={onChange}
-                ref={ref}
-                hasError={Boolean(errors.projectName)}
-                placeholder="Project name"
-                className="mt-2 w-full"
-                autoComplete="off"
-              />
-            )}
-          />
-        </div>
-        <div className="text-secondary">
           <p className="text-13">
-            To confirm, type <span className="font-medium text-primary">delete my project</span> below:
+            To confirm, type <span className="font-medium text-primary">delete</span> below:
           </p>
           <Controller
             control={control}
@@ -143,7 +119,7 @@ export function DeleteProjectModal(props: DeleteProjectModal) {
                 onChange={onChange}
                 ref={ref}
                 hasError={Boolean(errors.confirmDelete)}
-                placeholder="Enter 'delete my project'"
+                placeholder="delete"
                 className="mt-2 w-full"
                 autoComplete="off"
               />

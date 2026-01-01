@@ -309,8 +309,11 @@ See `DEV_FEATURES.md` for complete documentation of all customizations:
 - **Password validation bypass** - Skip strength checks for self-hosted convenience
 - **Auto instance setup** - No more getting-started page on fresh installs
 - **Full backup container** - Comprehensive backup/restore with `plane-backup`
-- **Bulk import modal** - UI for importing all entity types with cross-references
+- **Bulk import modal** - UI for importing all entity types with cross-references (session auth)
+- **Sidebar delete option** - Delete projects directly from sidebar menu (admin only)
+- **Simplified delete confirmation** - Just type "delete" instead of project name
 - **God-mode bypass** - Admin panel routing disabled to prevent redirect loops
+- **Web nginx API proxy** - Session auth support for bulk import modal
 
 ## License
 

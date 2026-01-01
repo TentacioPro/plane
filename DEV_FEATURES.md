@@ -84,19 +84,23 @@ docker compose --profile backup run --rm plane-backup /restore.sh plane_full_bac
 No UI for bulk data import; only CLI/API available.
 
 ### Solution
-Added comprehensive bulk import modal with full entity sync support.
+Added comprehensive bulk import modal with full entity sync support using session authentication.
 
 **Files Modified:**
 - `apps/web/core/components/import-export/bulk-import-export-modal.tsx`
 - `apps/web/app/(all)/[workspaceSlug]/(projects)/header.tsx`
+- `apps/web/nginx/nginx.conf` - Added API proxy for session auth
 
 **Features:**
-- Full project import (states, labels, modules, cycles, pages, issues)
+- Full project import (states, labels, modules, cycles, pages, work items)
 - Single entity import
-- Template downloads
+- Template downloads with `work_items` key support
 - Cross-reference support via `temp_id`
 - Module-Issue and Cycle-Issue post-creation linking
 - API schema reference
+- Session authentication (no API key required when logged in)
+
+**Key Fix (Jan 2026):** Fixed project selector returning character index instead of UUID by correcting `CustomSearchSelect` usage with `multiple={false}`.
 
 ---
 
@@ -109,7 +113,24 @@ Added comprehensive bulk import modal with full entity sync support.
 | `POST /auth/sign-up/` | Password validation bypass when `BYPASS_PASSWORD_VALIDATION=1` |
 | `POST /api/users/me/change-password/` | Same bypass logic |
 
-### API v1 Endpoints (Used by Bulk Import)
+### API Endpoints (Session Auth - Used by Bulk Import Modal)
+
+The bulk import modal uses session authentication (browser cookies). Must be logged in to use.
+
+| Entity | Endpoint | Auth |
+|--------|----------|------|
+| State | `POST /api/workspaces/{slug}/projects/{project_id}/states/` | Session |
+| Label | `POST /api/workspaces/{slug}/projects/{project_id}/issue-labels/` | Session |
+| Module | `POST /api/workspaces/{slug}/projects/{project_id}/modules/` | Session |
+| Cycle | `POST /api/workspaces/{slug}/projects/{project_id}/cycles/` | Session |
+| Page | `POST /api/workspaces/{slug}/projects/{project_id}/pages/` | Session |
+| Work Item | `POST /api/workspaces/{slug}/projects/{project_id}/issues/` | Session |
+| Module-Issue | `POST /api/.../modules/{module_id}/issues/` | Session |
+| Cycle-Issue | `POST /api/.../cycles/{cycle_id}/cycle-issues/` | Session |
+
+**Note:** The web container's nginx proxies `/api/` requests to the Django backend for session auth support.
+
+### API v1 Endpoints (API Key Auth - For Scripts)
 
 | Entity | Endpoint | Auth |
 |--------|----------|------|
@@ -117,12 +138,45 @@ Added comprehensive bulk import modal with full entity sync support.
 | Label | `POST /api/v1/workspaces/{slug}/projects/{project_id}/labels/` | X-API-Key |
 | Module | `POST /api/v1/workspaces/{slug}/projects/{project_id}/modules/` | X-API-Key |
 | Cycle | `POST /api/v1/workspaces/{slug}/projects/{project_id}/cycles/` | X-API-Key |
-| Page | `POST /api/workspaces/{slug}/projects/{project_id}/pages/` | Session |
 | Issue | `POST /api/v1/workspaces/{slug}/projects/{project_id}/issues/` | X-API-Key |
-| Module-Issue | `POST /api/v1/.../modules/{module_id}/module-issues/` | X-API-Key |
-| Cycle-Issue | `POST /api/v1/.../cycles/{cycle_id}/cycle-issues/` | X-API-Key |
 
-**Note:** Pages use session auth (not API v1) because the `/api/v1/` page endpoint doesn't exist.
+---
+
+## Sidebar Delete Project Option
+
+### Problem
+Deleting a project required navigating to project settings, which is cumbersome.
+
+### Solution
+Added "Delete project" option directly in the sidebar project ellipsis menu (admin only).
+
+**Files Modified:**
+- `apps/web/core/components/workspace/sidebar/projects-list-item.tsx`
+
+**Features:**
+- Red "Delete project" menu item (visible to admins only)
+- Opens the simplified delete modal directly
+- Works from any page without navigation
+
+---
+
+## Simplified Delete Project Confirmation
+
+### Problem
+Original Plane requires typing the project name AND "delete my project" (two separate fields) to confirm project deletion - overly cumbersome for self-hosted use.
+
+### Solution
+Simplified to a single field requiring just typing "delete".
+
+**Files Modified:**
+- `apps/web/core/components/project/delete-project-modal.tsx`
+
+**Before:**
+- Field 1: Type project name exactly
+- Field 2: Type "delete my project"
+
+**After:**
+- Single field: Type "delete"
 
 ---
 
@@ -200,7 +254,9 @@ plane/
 │   └── web/
 │       └── core/components/
 │           ├── account/auth-forms/password.tsx  # Modified
-│           └── import-export/bulk-import-export-modal.tsx  # Modified
+│           ├── import-export/bulk-import-export-modal.tsx  # Modified
+│           ├── project/delete-project-modal.tsx  # Modified
+│           └── workspace/sidebar/projects-list-item.tsx  # Modified
 ├── docker-compose.yaml  # Modified
 ├── edge.conf           # Modified
 ├── DEV_FEATURES.md     # This file

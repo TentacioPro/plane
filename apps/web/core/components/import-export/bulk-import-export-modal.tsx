@@ -259,8 +259,8 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
       workspaceProjectIds?.map((projectId) => {
         const projectDetails = getProjectById(projectId);
         return {
-          value: projectDetails?.id,
-          query: `${projectDetails?.name} ${projectDetails?.identifier}`,
+          value: projectId, // Use projectId directly, not projectDetails?.id
+          query: `${projectDetails?.name ?? ""} ${projectDetails?.identifier ?? ""}`,
           content: (
             <div className="flex items-center gap-2">
               <span className="text-xs text-tertiary flex-shrink-0">{projectDetails?.identifier}</span>
@@ -897,8 +897,8 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
         <div className="flex items-center gap-3">
           <span className="text-sm text-tertiary">Project:</span>
           <CustomSearchSelect
-            value={selectedProjectId ? [selectedProjectId] : []}
-            onChange={(values: string[]) => setSelectedProjectId(values?.[0])}
+            value={selectedProjectId}
+            onChange={(value: string) => setSelectedProjectId(value)}
             options={projectOptions}
             input
             multiple={false}
