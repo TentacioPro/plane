@@ -1,0 +1,244 @@
+{
+  "_info": {
+    "description": "Full project import template with cross-references",
+    "import_order": "states → labels → modules → cycles → pages → issues",
+    "temp_id_usage": "Use temp_id to reference entities before they're created",
+    "note": "Issues use 'state', 'labels', 'assignees' fields (not state_id, label_ids)",
+    "module_cycle_linking": "Issues can reference 'modules' (array) and 'cycle' (string) - linked via separate API calls after creation"
+  },
+  "states": [
+    { "temp_id": "state-backlog", "name": "Backlog", "color": "#6B7280", "group": "backlog" },
+    { "temp_id": "state-todo", "name": "Todo", "color": "#3B82F6", "group": "unstarted" },
+    { "temp_id": "state-progress", "name": "In Progress", "color": "#F59E0B", "group": "started" },
+    { "temp_id": "state-done", "name": "Done", "color": "#10B981", "group": "completed" }
+  ],
+  "labels": [
+    { "temp_id": "label-bug", "name": "bug", "color": "#EF4444", "description": "Software defects" },
+    { "temp_id": "label-feature", "name": "feature", "color": "#3B82F6", "description": "New features" },
+    { "temp_id": "label-docs", "name": "documentation", "color": "#8B5CF6", "description": "Documentation updates" }
+  ],
+  "modules": [
+    {
+      "temp_id": "module-extraction",
+      "name": "Data Extraction",
+      "description": "KIRO + Copilot forensic extraction pipeline",
+      "status": "completed"
+    },
+    {
+      "temp_id": "module-infrastructure",
+      "name": "Infrastructure",
+      "description": "Docker, MongoDB, Qdrant, Plane setup",
+      "status": "completed"
+    },
+    {
+      "temp_id": "module-vertex",
+      "name": "Vertex AI Batch",
+      "description": "GCP batch inference pipeline",
+      "status": "completed"
+    },
+    {
+      "temp_id": "module-api",
+      "name": "API & Search",
+      "description": "Semantic search endpoints",
+      "status": "in-progress"
+    }
+  ],
+  "cycles": [
+    {
+      "temp_id": "cycle-sprint1",
+      "name": "Sprint 1: Foundation & Extraction",
+      "description": "Dec 8-25: Docker setup, KIRO discovery, MongoDB import",
+      "start_date": "2025-12-08T00:00:00Z",
+      "end_date": "2025-12-25T23:59:59Z"
+    },
+    {
+      "temp_id": "cycle-sprint2",
+      "name": "Sprint 2: Cloud & PMS",
+      "description": "Dec 25-29: Vertex AI batch, Plane self-host, API development",
+      "start_date": "2025-12-25T00:00:00Z",
+      "end_date": "2025-12-29T23:59:59Z"
+    }
+  ],
+  "pages": [
+    {
+      "temp_id": "page-overview",
+      "name": "Project Overview",
+      "description_html": "<h1>Second Brain - AI Knowledge Extraction System</h1><h2>Vision</h2><p>Transform raw AI chat history into a searchable knowledge base with semantic understanding of developer intent, struggle patterns, and engineering decisions.</p><h2>The Journey (Dec 8-28, 2025)</h2><p>What started as a simple portfolio evolved through <strong>5 major strategic pivots</strong> into a production-ready AI knowledge extraction system.</p><h3>Key Discovery: KIRO Agent</h3><p>Started expecting ~2,000 Copilot chats. Found <strong>125,413 pre-computed vectors</strong> in SQLite! User was <strong>36x more active with KIRO than Copilot</strong> (49,775 vs 1,385 exchanges).</p><h3>Final Metrics</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Documents</td><td>16,116</td></tr><tr><td>Exchanges</td><td>51,160</td></tr><tr><td>Vectors</td><td>125,413</td></tr><tr><td>Projects</td><td>99</td></tr><tr><td>Data Size</td><td>4.7GB</td></tr></table><h3>Collections</h3><ul><li><code>conversations</code>: 99 docs</li><li><code>deepdivelogs</code>: 2,394 docs</li><li><code>neuralarchives</code>: 2 docs</li><li><code>projectslists</code>: 101 docs</li><li><code>rawconversations</code>: 13,520 docs</li></ul><h3>Technology Distribution</h3><ul><li>Tailwind CSS: 20 projects</li><li>Express: 19 projects</li><li>KIRO Agent: 18 projects</li><li>React: 17 projects</li><li>MongoDB: 14 projects</li><li>Docker: 13 projects</li></ul>",
+      "access": 0
+    },
+    {
+      "temp_id": "page-kiro-discovery",
+      "name": "KIRO Agent Discovery (Dec 21)",
+      "description_html": "<h1>KIRO Agent Deep Dive</h1><h2>The Moment Everything Changed</h2><p>Started expecting ~2,000 Copilot chats. Found <strong>125,413 pre-computed vectors</strong> in SQLite!</p><h3>Data Inventory</h3><pre>.manifest files: 13,791  - LanceDB metadata\n.txn files:      13,779  - LanceDB transaction logs\n.chat files:     13,222  - Chat conversations\n.lance files:     6,078  - LanceDB vector tables\n.js files:        4,084  - Code files\n.tsx files:       1,965  - React TypeScript</pre><h3>SQLite Schema (index.sqlite)</h3><pre>CREATE TABLE lance_db_cache (\n    uuid TEXT PRIMARY KEY,\n    cacheKey TEXT NOT NULL,\n    path TEXT NOT NULL,\n    artifact_id TEXT NOT NULL,\n    vector TEXT NOT NULL,  -- 384-dim embedding\n    startLine INTEGER NOT NULL,\n    endLine INTEGER NOT NULL,\n    contents TEXT NOT NULL\n);</pre><h3>Buffer Overflow Crisis</h3><p><strong>Error:</strong> <code>offset out of range. It must be >= 0 && <= 17825792. Received 17825794</code></p><p><strong>Root Cause:</strong> 10,825 files × 350KB = ~2GB (V8 limit ~1GB)</p><p><strong>Solution:</strong></p><ol><li>Streaming: 50 files/batch</li><li>Garbage collection: <code>node --expose-gc</code></li><li>MongoDB chunking: 500 sessions/doc</li></ol><p><strong>Result:</strong> 37,698 exchanges recovered (73.7% of total)</p><h3>Vector Import Stats</h3><ul><li>125,413 vectors at 908/sec</li><li>138 seconds total</li><li>0 failures</li></ul><h3>Key Insight</h3><p><strong>KIRO was 36x more active than Copilot!</strong> (49,775 vs 1,385 exchanges)</p>",
+      "access": 0
+    },
+    {
+      "temp_id": "page-mongodb-import",
+      "name": "MongoDB Import (Dec 25)",
+      "description_html": "<h1>MongoDB Import Session</h1><h2>The Situation</h2><p>Christmas Day. 4.7GB exports on laptop. Docker MongoDB empty.</p><h2>Options Evaluated</h2><table><tr><th>Approach</th><th>Verdict</th></tr><tr><td>Node.js script</td><td>❌ Slow, memory issues</td></tr><tr><td>mongo shell load()</td><td>❌ Crashes on large files</td></tr><tr><td>mongoimport CLI</td><td>✅ Native, fast</td></tr></table><h2>Methodology</h2><pre>docker cp exports/*.json container:/tmp/\ndocker exec container mongoimport \\\n  --uri mongodb://localhost:27017/secondbrain \\\n  --collection X \\\n  --file /tmp/X.json \\\n  --jsonArray</pre><h2>Results</h2><table><tr><th>Collection</th><th>Docs</th><th>Size</th><th>Time</th></tr><tr><td>conversations</td><td>99</td><td>165MB</td><td>~4s</td></tr><tr><td>deepdivelogs</td><td>2,394</td><td>6.2MB</td><td>~0.4s</td></tr><tr><td>neuralarchives</td><td>2</td><td>5.1KB</td><td>~0.2s</td></tr><tr><td>projectslists</td><td>101</td><td>56KB</td><td>~0.2s</td></tr><tr><td>rawconversations</td><td>13,520</td><td>4.25GB</td><td>~60s</td></tr><tr><td><strong>TOTAL</strong></td><td><strong>16,116</strong></td><td><strong>4.7GB</strong></td><td><strong>~65s</strong></td></tr></table><h2>Key Decisions</h2><ul><li><strong>Why /tmp/?</strong> Guaranteed writable, auto-cleaned on restart</li><li><strong>Why --jsonArray?</strong> Our exports are <code>[{}, {}]</code> not NDJSON</li><li><strong>Why mongoimport?</strong> Native tool, no custom parsing, 100% success</li></ul>",
+      "access": 0
+    },
+    {
+      "temp_id": "page-vertex-batch",
+      "name": "Vertex AI Batch Pipeline",
+      "description_html": "<h1>Vertex AI Batch Pipeline</h1><h2>The Problem</h2><ul><li>13,520 documents (4.32GB)</li><li>Online API: 5 RPM rate limit</li><li>Groq: 100k tokens/day blocked at 90%</li></ul><h2>The Solution: Batch API</h2><ul><li><strong>50% discount</strong> vs online API</li><li><strong>No rate limits</strong></li><li><strong>Implicit caching:</strong> 90% on repeated tokens</li></ul><h2>Debugging Journey</h2><h3>Error 1: Model 404</h3><pre>NOT_FOUND: gemini-2.5-flash-001 does not exist</pre><p><strong>Root Cause:</strong> Preview models need full suffix</p><p><strong>Fix:</strong> Use <code>gemini-2.5-flash-preview-05-20</code></p><h3>Error 2: Bucket 404</h3><p><strong>Fix:</strong> Auto-create bucket if missing</p><h3>Node.js Implementation</h3><pre>// Model Resource Format\nconst model = 'publishers/google/models/gemini-2.5-flash-preview-05-20';\n\n// Endpoint must specify region\nconst endpoint = `${LOCATION}-aiplatform.googleapis.com`;\n\n// Input payload format\n{\n  \"contents\": [{ \"role\": \"user\", \"parts\": [{ \"text\": \"...\" }] }],\n  \"generation_config\": { \"temperature\": 0.2 }\n}</pre><h2>Idempotency</h2><ol><li>Content hash in .batch_meta.json</li><li>GCS size verification</li><li>Job state tracking</li></ol><h2>Results</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Documents</td><td>13,520</td></tr><tr><td>Data Size</td><td>4.32GB</td></tr><tr><td>Cost Savings</td><td>~50%</td></tr></table>",
+      "access": 0
+    },
+    {
+      "temp_id": "page-plane-setup",
+      "name": "Plane Self-Host Setup (Dec 27)",
+      "description_html": "<h1>Plane Self-Host Setup</h1><h2>Services (8 containers)</h2><ul><li><code>plane-api</code> - Django (port 3006→8000)</li><li><code>plane-web</code> - Next.js (port 3005→3000)</li><li><code>plane-db</code> - Postgres 15</li><li><code>plane-redis</code> - Redis 7</li><li><code>plane-minio</code> - S3 storage (9000/9001)</li><li><code>plane-edge</code> - nginx proxy</li><li><code>db-backup</code> - pg_dump every 24h</li><li><code>minio-backup</code> - mc mirror every 24h</li></ul><h2>The 401 Problem</h2><p>UI stuck on welcome screen. Console showed:</p><pre>GET /api/users/me/ 401 Unauthorized</pre><h2>Root Cause</h2><p>Instance flags: <code>is_setup_done=False</code>, no instance admin linked.</p><h2>The Fix</h2><ol><li><code>python manage.py create_instance_admin email@example.com</code></li><li>Django shell: <code>inst.is_setup_done=True; inst.save()</code></li><li>Edge rewrite for <code>/god-mode/*</code></li></ol><h2>Backup Config</h2><ul><li>Postgres: pg_dump every 24h to <code>backups/db/</code></li><li>MinIO: mc mirror every 24h to <code>backups/minio/</code></li><li>Logs: json-file driver, 10MB chunks, 5 files</li></ul><h2>Volumes</h2><ul><li><code>pgdata</code> - Postgres files</li><li><code>redisdata</code> - RDB snapshots</li><li><code>uploads</code> - MinIO bucket</li></ul>",
+      "access": 0
+    }
+  ],
+  "issues": [
+    {
+      "name": "KIRO Agent discovery - 125K vectors found",
+      "priority": "high",
+      "description_html": "<p><strong>MAJOR DISCOVERY (Dec 21):</strong> Started expecting ~2,000 Copilot chats. Found 125,413 pre-computed vectors in SQLite!</p><h3>Data Found</h3><ul><li>125,413 vectors (384-dim, all-MiniLM-L6-v2)</li><li>272,497 code chunks</li><li>7,345 code snippets</li><li>13,222 .chat files</li></ul><h3>Key Insight</h3><p>User was <strong>36x more active with KIRO than Copilot</strong> (49,775 vs 1,385 exchanges).</p><p><strong>Commit:</strong> 19b4e97</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "Buffer overflow on 10,825 files - streaming fix",
+      "priority": "urgent",
+      "description_html": "<p><strong>CRISIS (Dec 21):</strong> Large KIRO workspaces crashed extraction.</p><h3>Error</h3><pre>offset out of range. It must be >= 0 && <= 17825792. Received 17825794</pre><h3>Root Cause</h3><p>10,825 files × 350KB = ~2GB (V8 string limit ~1GB)</p><h3>Solution</h3><ol><li>Streaming: 50 files/batch</li><li><code>node --expose-gc</code> + manual gc()</li><li>MongoDB chunking: 500 sessions/doc</li></ol><h3>Result</h3><p>37,698 exchanges recovered (73.7% of total)</p><p><strong>Commit:</strong> f93bc57</p>",
+      "state": "state-done",
+      "labels": ["label-bug"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "MongoDB 16MB document limit - chunking solution",
+      "priority": "urgent",
+      "description_html": "<p><strong>Problem:</strong> 5,947 sessions in single document → 17.8MB (exceeds 16MB limit)</p><h3>Solution</h3><p>Split into 500 sessions per document:</p><ul><li>Workspace 7281... → 12 MongoDB documents</li><li>Workspace 8856... → 10 MongoDB documents</li></ul><p>Total: 22 documents for 10,825 sessions</p>",
+      "state": "state-done",
+      "labels": ["label-bug"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "Docker mongoimport - 16,116 docs in 65 seconds",
+      "priority": "high",
+      "description_html": "<p><strong>Dec 25:</strong> Christmas Day import session.</p><h3>Methodology</h3><pre>docker cp exports/*.json container:/tmp/\ndocker exec container mongoimport \\\n  --uri mongodb://localhost:27017/secondbrain \\\n  --collection X --file /tmp/X.json --jsonArray</pre><h3>Results</h3><table><tr><th>Collection</th><th>Docs</th><th>Time</th></tr><tr><td>conversations</td><td>99</td><td>~4s</td></tr><tr><td>deepdivelogs</td><td>2,394</td><td>~0.4s</td></tr><tr><td>rawconversations</td><td>13,520</td><td>~60s</td></tr><tr><td><strong>TOTAL</strong></td><td><strong>16,116</strong></td><td><strong>~65s</strong></td></tr></table><p>100% success rate, 0 failures.</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-infrastructure"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "Qdrant vector import - 908 vectors/sec",
+      "priority": "high",
+      "description_html": "<p><strong>Dec 21:</strong> Extracted pre-computed embeddings from KIRO SQLite to Qdrant.</p><h3>Stats</h3><ul><li>125,413 vectors imported</li><li>908 vectors/second</li><li>138 seconds total</li><li>0 failures</li></ul><h3>Verification</h3><pre>Query: \"authentication login user credentials\"\n✅ Returns: FTP login, IMAP auth functions (0.55 score)\n\nQuery: \"database connection MongoDB setup\"\n✅ Returns: AsyncIOMotorClient init (0.58 score)</pre><p><strong>Commit:</strong> 19b4e97</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "Vertex AI Model 404 - preview suffix fix",
+      "priority": "high",
+      "description_html": "<p><strong>Error:</strong></p><pre>NOT_FOUND: gemini-2.5-flash-001 does not exist</pre><h3>Root Cause</h3><p>Preview models require full date suffix, not version number.</p><h3>Fix</h3><p>Use <code>gemini-2.5-flash-preview-05-20</code> instead of <code>gemini-2.5-flash-001</code></p><p>Model resource format: <code>publishers/google/models/${MODEL_ID}</code></p><p><strong>Commit:</strong> 57ea295</p>",
+      "state": "state-done",
+      "labels": ["label-bug"],
+      "modules": ["module-vertex"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "Vertex AI Batch pipeline - 50% cost savings",
+      "priority": "high",
+      "description_html": "<p><strong>PIVOT (Dec 25-26):</strong> Online API → Batch API</p><h3>Problem</h3><ul><li>13,520 documents (4.32GB)</li><li>Online API: 5 RPM rate limit</li><li>Groq: 100k tokens/day blocked</li></ul><h3>Solution</h3><ul><li>Batch API: 50% discount</li><li>No rate limits</li><li>GCS staging</li></ul><h3>Implementation</h3><pre>const model = 'publishers/google/models/gemini-2.5-flash-preview-05-20';\nconst endpoint = `${LOCATION}-aiplatform.googleapis.com`;</pre><p><strong>Commit:</strong> 57ea295</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-vertex"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "Plane 401 on welcome screen - instance admin fix",
+      "priority": "high",
+      "description_html": "<p><strong>Problem (Dec 27):</strong> UI stuck with 401s, <code>is_setup_done=False</code></p><h3>Console Error</h3><pre>GET /api/users/me/ 401 Unauthorized</pre><h3>Root Cause</h3><p>Instance flags not configured, no instance admin linked.</p><h3>Fix</h3><ol><li><code>python manage.py create_instance_admin email@example.com</code></li><li>Django shell: <code>inst.is_setup_done=True; inst.save()</code></li><li>Edge rewrite for <code>/god-mode/*</code></li></ol>",
+      "state": "state-done",
+      "labels": ["label-bug"],
+      "modules": ["module-infrastructure"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "Plane self-hosted PMS - 8 Docker services",
+      "priority": "high",
+      "description_html": "<p><strong>Dec 27:</strong> Full Plane deployment with backups.</p><h3>Services</h3><ul><li>plane-api (Django, 3006→8000)</li><li>plane-web (Next.js, 3005→3000)</li><li>plane-db (Postgres 15)</li><li>plane-redis (Redis 7)</li><li>plane-minio (S3, 9000/9001)</li><li>plane-edge (nginx)</li><li>db-backup (pg_dump 24h)</li><li>minio-backup (mc mirror 24h)</li></ul><h3>Volumes</h3><p>pgdata, redisdata, uploads, backups/db, backups/minio</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-infrastructure"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "Idempotent ELT pipeline architecture",
+      "priority": "high",
+      "description_html": "<p><strong>Philosophy:</strong> 'Run it again. Same result. Zero wasted work.'</p><h3>Scripts</h3><ul><li>ingest-raw-workspace.js</li><li>archiver-gemini.js</li><li>trigger_batch_processing.js</li><li>vectorize-archives.js</li><li>export-mongo.js</li><li>import-mongo.js</li></ul><h3>Features</h3><ul><li>Content hash in .batch_meta.json</li><li>GCS size verification</li><li>Job state tracking</li><li>--status dashboard</li></ul><p><strong>Commit:</strong> 61039a0</p>",
+      "state": "state-done",
+      "labels": ["label-feature"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "GPU thermal protection - RTX 3050 at 85°C",
+      "priority": "urgent",
+      "description_html": "<p><strong>Problem (Dec 21):</strong> RTX 3050 hitting 85°C during Ollama inference.</p><h3>Solution</h3><ul><li>2s cooldown per request</li><li>10s cooldown per 50 items</li><li>concurrency=1</li></ul><h3>Result</h3><p>Stable 26+ hour runs at 70-75°C</p>",
+      "state": "state-done",
+      "labels": ["label-bug"],
+      "modules": ["module-extraction"],
+      "cycle": "cycle-sprint1",
+      "assignees": []
+    },
+    {
+      "name": "Semantic search API endpoint",
+      "priority": "high",
+      "description_html": "<p>Build <code>/api/search/code</code> endpoint to query 125K vectors.</p><h3>Requirements</h3><ul><li>Qdrant integration</li><li>Query preprocessing</li><li>Pagination</li><li>Project-level filtering</li></ul><h3>Expected Input</h3><pre>POST /api/search/code\n{ \"query\": \"authentication\", \"limit\": 10 }</pre>",
+      "state": "state-progress",
+      "labels": ["label-feature"],
+      "modules": ["module-api"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "Frontend UI for data browsing",
+      "priority": "high",
+      "description_html": "<p>React components for browsing 16K documents.</p><h3>Features</h3><ul><li>Conversation browser</li><li>Vector visualization</li><li>Struggle heatmap</li><li>Technology distribution chart</li></ul>",
+      "state": "state-progress",
+      "labels": ["label-feature"],
+      "modules": ["module-api"],
+      "cycle": "cycle-sprint2",
+      "assignees": []
+    },
+    {
+      "name": "RAG pipeline implementation",
+      "priority": "high",
+      "description_html": "<p>Combine chat history with semantic search.</p><h3>Flow</h3><p>Query → Vector search → Context → LLM → Response with citations</p>",
+      "state": "state-backlog",
+      "labels": ["label-feature"],
+      "modules": ["module-api"],
+      "assignees": []
+    },
+    {
+      "name": "Authentication system",
+      "priority": "medium",
+      "description_html": "<p>Add auth to protect API.</p><h3>Options</h3><ul><li>Clerk</li><li>NextAuth</li><li>Custom JWT</li></ul>",
+      "state": "state-backlog",
+      "labels": ["label-feature"],
+      "modules": ["module-api"],
+      "assignees": []
+    }
+  ]
+}

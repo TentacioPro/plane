@@ -59,6 +59,7 @@ type FullProjectData = {
   cycles?: Record<string, unknown>[];
   pages?: Record<string, unknown>[];
   issues?: Record<string, unknown>[];
+  work_items?: Record<string, unknown>[]; // Alias for issues
 };
 
 type ParsedImportData = {
@@ -70,22 +71,24 @@ type ParsedImportData = {
 const SCHEMA_SECTIONS: SchemaSection[] = [
   {
     id: "issue",
-    title: "Issue (Work Item)",
-    endpoint: "/api/v1/workspaces/{slug}/projects/{project_id}/issues/",
+    title: "Work Item (Issue)",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/issues/",
     method: "POST",
-    description: "Create issues/work items in a project",
+    description: "Create work items/issues in a project",
     schema: {
       name: "string (required, max 255)",
       description_html: "string (HTML content)",
       priority: "urgent|high|medium|low|none",
-      state: "uuid (project state)",
+      state: "uuid (project state) or temp_id reference",
       parent: "uuid (parent issue in same project)",
       assignees: "uuid[] (project members)",
-      labels: "uuid[] (project labels)",
+      labels: "uuid[] (project labels) or temp_id references",
       start_date: "YYYY-MM-DD",
       target_date: "YYYY-MM-DD",
       type_id: "uuid (issue type)",
       estimate_point: "uuid (estimate point)",
+      modules: "temp_id[] (linked post-creation)",
+      cycle: "temp_id (linked post-creation)",
     },
     example: {
       name: "Implement user authentication",
@@ -93,14 +96,17 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
       priority: "high",
       start_date: "2025-12-29",
       target_date: "2026-01-15",
+      state: "state-todo",
+      labels: ["label-feature"],
+      modules: ["module-auth"],
+      cycle: "cycle-sprint1",
       assignees: [],
-      labels: [],
     },
   },
   {
     id: "state",
     title: "State (Workflow)",
-    endpoint: "/api/v1/workspaces/{slug}/projects/{project_id}/states/",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/states/",
     method: "POST",
     description: "Create workflow states for issues",
     schema: {
@@ -120,7 +126,7 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
   {
     id: "label",
     title: "Label",
-    endpoint: "/api/v1/workspaces/{slug}/projects/{project_id}/labels/",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/issue-labels/",
     method: "POST",
     description: "Create labels for categorizing issues",
     schema: {
@@ -139,7 +145,7 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
   {
     id: "module",
     title: "Module",
-    endpoint: "/api/v1/workspaces/{slug}/projects/{project_id}/modules/",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/modules/",
     method: "POST",
     description: "Create modules for feature grouping",
     schema: {
@@ -163,7 +169,7 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
   {
     id: "cycle",
     title: "Cycle (Sprint)",
-    endpoint: "/api/v1/workspaces/{slug}/projects/{project_id}/cycles/",
+    endpoint: "/api/workspaces/{slug}/projects/{project_id}/cycles/",
     method: "POST",
     description: "Create time-boxed iterations",
     schema: {
@@ -204,12 +210,12 @@ const SCHEMA_SECTIONS: SchemaSection[] = [
 ];
 
 const IMPORT_ORDER = [
-  { step: 1, entity: "States", reason: "Required for issue workflow" },
+  { step: 1, entity: "States", reason: "Required for work item workflow" },
   { step: 2, entity: "Labels", reason: "Required for categorization" },
   { step: 3, entity: "Modules", reason: "Feature groupings" },
   { step: 4, entity: "Cycles", reason: "Time-boxed iterations" },
   { step: 5, entity: "Pages", reason: "Documentation" },
-  { step: 6, entity: "Issues", reason: "Work items (can reference all above)" },
+  { step: 6, entity: "Work Items", reason: "Tasks (can reference all above)" },
 ];
 
 export const BulkImportExportModal = observer(function BulkImportExportModal(props: TBulkImportExportModalProps) {
@@ -309,11 +315,11 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     const template = {
       _info: {
         description: "Full project import template with cross-references",
-        import_order: "states → labels → modules → cycles → pages → issues",
+        import_order: "states → labels → modules → cycles → pages → work_items/issues",
         temp_id_usage: "Use temp_id to reference entities before they're created",
-        note: "Issues use 'state', 'labels', 'assignees' fields (not state_id, label_ids)",
+        note: "Work items use 'state', 'labels', 'assignees' fields (not state_id, label_ids). You can use either 'issues' or 'work_items' key.",
         module_cycle_linking:
-          "Issues can reference 'modules' (array) and 'cycle' (string) - linked via separate API calls after creation",
+          "Work items can reference 'modules' (array) and 'cycle' (string) - linked via separate API calls after creation",
       },
       states: [
         { temp_id: "state-backlog", name: "Backlog", color: "#6B7280", group: "backlog" },
@@ -353,7 +359,7 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           access: 0,
         },
       ],
-      issues: [
+      work_items: [
         {
           name: "Setup project structure",
           priority: "high",
@@ -438,15 +444,32 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
         },
       ],
       issue: [
-        { name: "Task 1", priority: "high", description_html: "<p>Description</p>", assignees: [], labels: [] },
-        { name: "Task 2", priority: "medium", description_html: "<p>Description</p>", assignees: [], labels: [] },
+        {
+          name: "Work Item 1",
+          priority: "high",
+          description_html: "<p>Description of the work item</p>",
+          state: "state-todo",
+          labels: ["label-feature"],
+          modules: ["module-core"],
+          cycle: "cycle-sprint1",
+          assignees: [],
+        },
+        {
+          name: "Work Item 2",
+          priority: "medium",
+          description_html: "<p>Another work item</p>",
+          assignees: [],
+          labels: [],
+        },
       ],
     };
     const blob = new Blob([JSON.stringify(templates[entityType], null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `plane-${entityType}s-template.json`;
+    // Use "work-items" for issue downloads for clarity
+    const filename = entityType === "issue" ? "plane-work-items-template.json" : `plane-${entityType}s-template.json`;
+    anchor.download = filename;
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -466,10 +489,17 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
             const parsedObj = parsed as Record<string, unknown>;
             const keys = Object.keys(parsedObj);
-            const entityKeys = ["states", "labels", "modules", "cycles", "pages", "issues"];
+            // Support both "issues" and "work_items" as valid keys
+            const entityKeys = ["states", "labels", "modules", "cycles", "pages", "issues", "work_items"];
             const hasEntityKeys = keys.some((k) => entityKeys.includes(k));
             if (hasEntityKeys) {
-              setParsedData({ mode: "full", data: parsedObj as FullProjectData });
+              // Normalize work_items to issues for processing
+              const normalizedData = { ...parsedObj } as FullProjectData;
+              if (normalizedData.work_items && !normalizedData.issues) {
+                normalizedData.issues = normalizedData.work_items;
+                delete normalizedData.work_items;
+              }
+              setParsedData({ mode: "full", data: normalizedData });
               setImportMode("full");
               return;
             }
@@ -534,17 +564,27 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
+  // Use non-v1 API endpoints (session auth) for all entities
+  // Note: v1 API requires X-Api-Key header, but we use session cookies
   const getApiEndpoint = (entityType: ImportEntityType): string => {
     const endpoints: Record<ImportEntityType, string> = {
-      issue: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/issues/`,
-      state: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/states/`,
-      label: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/labels/`,
-      module: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/`,
-      cycle: `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/`,
+      issue: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/issues/`,
+      state: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/states/`,
+      label: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/issue-labels/`,
+      module: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/`,
+      cycle: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/`,
       page: `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/pages/`,
     };
     return endpoints[entityType];
   };
+
+  // Get module-issue linking endpoint
+  const getModuleIssueEndpoint = (moduleId: string): string =>
+    `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/${moduleId}/issues/`;
+
+  // Get cycle-issue linking endpoint
+  const getCycleIssueEndpoint = (cycleId: string): string =>
+    `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/${cycleId}/cycle-issues/`;
 
   const importEntities = async (
     entityType: ImportEntityType,
@@ -729,10 +769,10 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
 
       // Process module/cycle links for issues (post-creation)
       for (const link of issueLinkQueue) {
-        // Link to modules
+        // Link to modules (uses /modules/{id}/issues/ endpoint with issue IDs array)
         for (const moduleId of link.moduleIds) {
           try {
-            const moduleIssueEndpoint = `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/modules/${moduleId}/module-issues/`;
+            const moduleIssueEndpoint = getModuleIssueEndpoint(moduleId);
             const response = await fetch(moduleIssueEndpoint, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -740,16 +780,19 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
               body: JSON.stringify({ issues: [link.issueId] }),
             });
             if (!response.ok) {
-              totalResult.errors.push(`module-link: Failed to link issue to module ${moduleId}`);
+              const errorData = (await response.json().catch(() => ({}))) as { detail?: string; error?: string };
+              totalResult.errors.push(
+                `module-link: Failed to link issue to module ${moduleId} - ${errorData.detail || errorData.error || response.status}`
+              );
             }
-          } catch {
-            totalResult.errors.push(`module-link: Network error linking issue to module`);
+          } catch (err) {
+            totalResult.errors.push(`module-link: ${err instanceof Error ? err.message : "Network error"}`);
           }
         }
-        // Link to cycle
+        // Link to cycle (uses /cycles/{id}/cycle-issues/ endpoint)
         if (link.cycleId) {
           try {
-            const cycleIssueEndpoint = `/api/v1/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/${link.cycleId}/cycle-issues/`;
+            const cycleIssueEndpoint = getCycleIssueEndpoint(link.cycleId);
             const response = await fetch(cycleIssueEndpoint, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -757,10 +800,13 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
               body: JSON.stringify({ issues: [link.issueId] }),
             });
             if (!response.ok) {
-              totalResult.errors.push(`cycle-link: Failed to link issue to cycle ${link.cycleId}`);
+              const errorData = (await response.json().catch(() => ({}))) as { detail?: string; error?: string };
+              totalResult.errors.push(
+                `cycle-link: Failed to link issue to cycle ${link.cycleId} - ${errorData.detail || errorData.error || response.status}`
+              );
             }
-          } catch {
-            totalResult.errors.push(`cycle-link: Network error linking issue to cycle`);
+          } catch (err) {
+            totalResult.errors.push(`cycle-link: ${err instanceof Error ? err.message : "Network error"}`);
           }
         }
       }
@@ -798,11 +844,13 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
       if (fullData.modules?.length) counts.push(`${fullData.modules.length} modules`);
       if (fullData.cycles?.length) counts.push(`${fullData.cycles.length} cycles`);
       if (fullData.pages?.length) counts.push(`${fullData.pages.length} pages`);
-      if (fullData.issues?.length) counts.push(`${fullData.issues.length} issues`);
+      if (fullData.issues?.length) counts.push(`${fullData.issues.length} work items`);
       return counts.join(", ");
     }
     const items = parsedData.data as Record<string, unknown>[];
-    return `${items.length} ${parsedData.entityType || importEntityType}s`;
+    const entityLabel =
+      (parsedData.entityType || importEntityType) === "issue" ? "work item" : parsedData.entityType || importEntityType;
+    return `${items.length} ${entityLabel}${items.length !== 1 ? "s" : ""}`;
   };
 
   return (
@@ -889,7 +937,9 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                     <div key={type} className="p-3 rounded-md border border-subtle-1 bg-layer-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-medium text-primary capitalize">{type}s Only</p>
+                          <p className="text-sm font-medium text-primary">
+                            {type === "issue" ? "Work Items" : `${type.charAt(0).toUpperCase() + type.slice(1)}s`} Only
+                          </p>
                           <p className="text-xs text-tertiary mt-0.5">Single entity type</p>
                         </div>
                         <Button variant="secondary" size="sm" onClick={() => handleDownloadEntityTemplate(type)}>
@@ -911,13 +961,17 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                       <CustomSelect
                         value={importEntityType}
                         onChange={(val: ImportEntityType) => setImportEntityType(val)}
-                        label={importEntityType.charAt(0).toUpperCase() + importEntityType.slice(1)}
+                        label={
+                          importEntityType === "issue"
+                            ? "Work Item"
+                            : importEntityType.charAt(0).toUpperCase() + importEntityType.slice(1)
+                        }
                         buttonClassName="text-xs h-7 px-2"
-                        optionsClassName="w-28"
+                        optionsClassName="w-32"
                       >
                         {(["issue", "state", "label", "module", "cycle", "page"] as ImportEntityType[]).map((type) => (
                           <CustomSelect.Option key={type} value={type}>
-                            <span className="capitalize">{type}</span>
+                            <span>{type === "issue" ? "Work Item" : type.charAt(0).toUpperCase() + type.slice(1)}</span>
                           </CustomSelect.Option>
                         ))}
                       </CustomSelect>
@@ -1011,26 +1065,28 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                   <div
                     className={`p-3 rounded-md ${importResult.failed > 0 ? "bg-warning-subtle" : "bg-success-subtle-1"}`}
                   >
-                    <div className="flex items-center gap-2">
-                      {importResult.failed > 0 ? (
-                        <AlertCircle className="size-4 text-warning-primary" />
-                      ) : (
-                        <CheckCircle2 className="size-4 text-success-primary" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {importResult.failed > 0 ? (
+                          <AlertCircle className="size-4 text-warning-primary" />
+                        ) : (
+                          <CheckCircle2 className="size-4 text-success-primary" />
+                        )}
+                        <span className="text-sm font-medium text-primary">
+                          {importResult.success} succeeded, {importResult.failed} failed
+                        </span>
+                      </div>
+                      {importResult.errors.length > 0 && (
+                        <span className="text-xs text-tertiary">{importResult.errors.length} error(s)</span>
                       )}
-                      <span className="text-sm font-medium text-primary">
-                        {importResult.success} succeeded, {importResult.failed} failed
-                      </span>
                     </div>
                     {importResult.errors.length > 0 && (
-                      <div className="mt-2 max-h-24 overflow-y-auto space-y-1">
-                        {importResult.errors.slice(0, 5).map((err, i) => (
-                          <p key={i} className="text-xs text-danger-primary">
-                            {err}
+                      <div className="mt-2 max-h-48 overflow-y-auto space-y-1 border border-subtle-1 rounded p-2 bg-layer-1">
+                        {importResult.errors.map((err, i) => (
+                          <p key={i} className="text-xs text-danger-primary font-mono break-all">
+                            {i + 1}. {err}
                           </p>
                         ))}
-                        {importResult.errors.length > 5 && (
-                          <p className="text-xs text-tertiary">+{importResult.errors.length - 5} more errors</p>
-                        )}
                       </div>
                     )}
                   </div>

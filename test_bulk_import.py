@@ -43,7 +43,7 @@ def print_result(name, response):
 
 def test_create_state():
     """Test creating a state"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"
     data = {
         "name": f"Test State {datetime.now().strftime('%H%M%S')}",
         "color": "#3B82F6",
@@ -55,7 +55,7 @@ def test_create_state():
 
 def test_create_label():
     """Test creating a label"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/labels/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issue-labels/"
     data = {
         "name": f"test-label-{datetime.now().strftime('%H%M%S')}",
         "color": "#EF4444",
@@ -66,7 +66,7 @@ def test_create_label():
 
 def test_create_module():
     """Test creating a module"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/modules/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/modules/"
     data = {
         "name": f"Test Module {datetime.now().strftime('%H%M%S')}",
         "description": "Test module created by bulk import test",
@@ -79,7 +79,7 @@ def test_create_module():
 
 def test_create_cycle():
     """Test creating a cycle"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/cycles/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/cycles/"
     data = {
         "name": f"Test Sprint {datetime.now().strftime('%H%M%S')}",
         "description": "Test cycle created by bulk import test",
@@ -91,8 +91,7 @@ def test_create_cycle():
     return print_result("Create Cycle", response), response
 
 def test_create_page():
-    """Test creating a page (uses session auth, not API key)"""
-    # Pages use the regular API endpoint, not /api/v1/
+    """Test creating a page (uses session auth)"""
     url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/pages/"
     data = {
         "name": f"Test Page {datetime.now().strftime('%H%M%S')}",
@@ -104,7 +103,7 @@ def test_create_page():
 
 def test_create_issue(state_id=None, label_id=None):
     """Test creating an issue"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"
     data = {
         "name": f"Test Issue {datetime.now().strftime('%H%M%S')}",
         "description_html": "<p>Test issue created by bulk import test</p>",
@@ -142,7 +141,7 @@ def test_create_issue_with_refs(state_id=None, label_id=None):
 
 def test_get_existing_states():
     """Get existing states to use for issue creation"""
-    url = f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"
+    url = f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"
     response = session.get(url)
     if response.status_code == 200:
         states = response.json()
@@ -185,12 +184,13 @@ def test_full_project_import():
     total_success = 0
     total_failed = 0
     
+    # Use non-v1 API endpoints (session auth)
     import_order = [
-        ("states", f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"),
-        ("labels", f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/labels/"),
-        ("modules", f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/modules/"),
-        ("cycles", f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/cycles/"),
-        ("issues", f"{BASE_URL}/api/v1/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"),
+        ("states", f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/states/"),
+        ("labels", f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issue-labels/"),
+        ("modules", f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/modules/"),
+        ("cycles", f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/cycles/"),
+        ("issues", f"{BASE_URL}/api/workspaces/{WORKSPACE_SLUG}/projects/{PROJECT_ID}/issues/"),
     ]
     
     for entity_type, url in import_order:

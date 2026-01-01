@@ -2,7 +2,7 @@
 
 Feature to enable bulk data population in Plane via API with complete schema documentation, UI support, and full entity synchronization.
 
-## Status: ✅ Complete
+## Status: ✅ Complete (v2 - Session Auth + Work Items)
 
 ## Test Results
 
@@ -12,9 +12,9 @@ All API tests passed (8/8):
 - ✓ Label Creation
 - ✓ Module Creation
 - ✓ Cycle Creation
-- ✓ Page Creation (requires session auth)
-- ✓ Issue Creation (basic)
-- ✓ Issue Creation (with state & label)
+- ✓ Page Creation
+- ✓ Work Item Creation (basic)
+- ✓ Work Item Creation (with state & label)
 - ✓ Full Project Import (8 entities)
 
 ## Full Entity Sync
@@ -28,46 +28,56 @@ The bulk import supports complete synchronization across all Plane entities with
 3. **Modules** → Created third (feature groupings)
 4. **Cycles** → Created fourth (sprints)
 5. **Pages** → Created fifth (documentation)
-6. **Issues** → Created last with references to all above
+6. **Work Items** → Created last with references to all above
 7. **Post-creation linking** → Module-Issue and Cycle-Issue relationships
 
 **Cross-Reference Support:**
 
 - Use `temp_id` on any entity to reference it before creation
-- Issues can reference `state`, `labels[]` directly (resolved during creation)
-- Issues can reference `modules[]` and `cycle` (linked via separate POST calls after issue creation)
+- Work items can reference `state`, `labels[]` directly (resolved during creation)
+- Work items can reference `modules[]` and `cycle` (linked via separate POST calls after issue creation)
+
+**Work Items vs Issues:**
+
+- "Work Item" is the UI name, "Issue" is the database model name
+- Both `issues` and `work_items` keys are supported in JSON templates
+- The API endpoint uses `/issues/` but the UI shows "Work Items"
 
 ## Features
 
 ### Frontend (Bulk Import Modal)
 
-- **Full Project Import**: Upload single JSON with all entities (states, labels, modules, cycles, pages, issues)
+- **Full Project Import**: Upload single JSON with all entities (states, labels, modules, cycles, pages, work_items)
 - **Single Entity Import**: Upload JSON array for specific entity type
 - **Template Downloads**: Pre-built templates for both scenarios
 - **Auto-detection**: Automatically detects import mode from file structure
-- **Progress Tracking**: Shows success/failure counts with error details
+- **Progress Tracking**: Shows success/failure counts with full scrollable error log
 - **API Schema Reference**: Expandable documentation for each endpoint
 - **Cross-reference Support**: Use `temp_id` to reference entities before creation
+- **Work Items Alias**: Supports both `issues` and `work_items` keys in JSON
 
-### Backend (API v1)
+### Backend (Session Auth API)
 
 - RESTful endpoints for all entity types
-- API Key authentication via `X-API-Key` header (for states, labels, modules, cycles, issues)
-- Session authentication for Pages (browser login required)
+- Session authentication (browser login required) - uses `/api/` endpoints
 - Proper validation and error responses
 
 ## API Endpoints
 
-| Entity       | Method | Endpoint                                                   | Auth    |
-| ------------ | ------ | ---------------------------------------------------------- | ------- |
-| State        | POST   | `/api/v1/workspaces/{slug}/projects/{project_id}/states/`  | API Key |
-| Label        | POST   | `/api/v1/workspaces/{slug}/projects/{project_id}/labels/`  | API Key |
-| Module       | POST   | `/api/v1/workspaces/{slug}/projects/{project_id}/modules/` | API Key |
-| Cycle        | POST   | `/api/v1/workspaces/{slug}/projects/{project_id}/cycles/`  | API Key |
-| Page         | POST   | `/api/workspaces/{slug}/projects/{project_id}/pages/`      | Session |
-| Issue        | POST   | `/api/v1/workspaces/{slug}/projects/{project_id}/issues/`  | API Key |
-| Module-Issue | POST   | `/api/v1/.../modules/{module_id}/module-issues/`           | API Key |
-| Cycle-Issue  | POST   | `/api/v1/.../cycles/{cycle_id}/cycle-issues/`              | API Key |
+All endpoints use session authentication (browser cookies). Must be logged in to use.
+
+| Entity       | Method | Endpoint                                                     | Auth    |
+| ------------ | ------ | ------------------------------------------------------------ | ------- |
+| State        | POST   | `/api/workspaces/{slug}/projects/{project_id}/states/`       | Session |
+| Label        | POST   | `/api/workspaces/{slug}/projects/{project_id}/issue-labels/` | Session |
+| Module       | POST   | `/api/workspaces/{slug}/projects/{project_id}/modules/`      | Session |
+| Cycle        | POST   | `/api/workspaces/{slug}/projects/{project_id}/cycles/`       | Session |
+| Page         | POST   | `/api/workspaces/{slug}/projects/{project_id}/pages/`        | Session |
+| Work Item    | POST   | `/api/workspaces/{slug}/projects/{project_id}/issues/`       | Session |
+| Module-Issue | POST   | `/api/.../modules/{module_id}/issues/`                       | Session |
+| Cycle-Issue  | POST   | `/api/.../cycles/{cycle_id}/cycle-issues/`                   | Session |
+
+**Note:** API v1 endpoints (`/api/v1/...`) require `X-API-Key` header authentication. The bulk import modal uses session auth for simplicity.
 
 ## JSON Schemas
 
