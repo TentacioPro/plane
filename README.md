@@ -99,6 +99,9 @@ For personal use on hardware with limited RAM (e.g., laptops, mini PCs), use the
 docker compose -f docker-compose-pc.yaml up -d
 ```
 
+**Documentation:**
+See [docs/prod-setup-guide.md](docs/prod-setup-guide.md) for the complete architecture, debugging log, and Cloudflare Tunnel configuration (including the critical MinIO domain split).
+
 ## First login / auth fixes
 
 - **Auto-setup**: Instance is automatically marked as setup complete on API startup (no more getting-started page).
@@ -335,6 +338,7 @@ See `DEV_FEATURES.md` for complete documentation of all customizations:
 - **Simplified delete confirmation** - Just type "delete" instead of project name
 - **God-mode bypass** - Admin panel routing disabled to prevent redirect loops
 - **Web nginx API proxy** - Session auth support for bulk import modal
+- **Lite Mode** - Optimized `docker-compose-pc.yaml` for low-RAM hardware (<4GB)
 
 ## License
 

@@ -16,6 +16,20 @@ The Lite Mode stack removes redundant enterprise features to save approximately 
 - **plane-edge**: Nginx reverse proxy (restored for stability and routing).
 - **tunnel**: Cloudflare Tunnel for secure public access without opening ports.
 
+## Critical Configuration
+
+To prevent **403 Forbidden** errors on file uploads, you must configure the API to use the **public domain** for signature generation, not the internal Docker hostname.
+
+**docker-compose-pc.yaml:**
+
+```yaml
+plane-api:
+  environment:
+    # Must point to the public HTTPS domain, NOT http://plane-minio:9000
+    AWS_S3_ENDPOINT_URL: "https://files.abishek.pro"
+    MINIO_EXTERNAL_ENDPOINT_URL: "https://files.abishek.pro"
+```
+
 ## Maintenance Commands
 
 **Start/Update System:**
