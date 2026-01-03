@@ -4,7 +4,10 @@ This guide provides step-by-step instructions to set up the Plane project manage
 
 ## Quick Start (New Machine)
 
+### Standard Setup (Recommended)
+
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/TentacioPro/plane.git
    cd plane
@@ -15,13 +18,26 @@ This guide provides step-by-step instructions to set up the Plane project manage
    docker compose up -d --build
    ```
 
-3. **Wait for services to be ready** (2-3 minutes):
+### Lite Mode (Low RAM)
+
+For personal use on hardware with limited RAM (<8GB), use the optimized PC configuration.
+
+1. **Start Lite services:**
+
+   ```bash
+   docker compose -f docker-compose-pc.yaml up -d
+   ```
+
+   > **Note:** This mode skips the initial migration container to save resources. The API container will handle migrations automatically on first boot.
+
+2. **Wait for services to be ready** (2-3 minutes):
+
    ```bash
    docker compose logs -f plane-api
    # Wait for "Starting gunicorn" message, then Ctrl+C
    ```
 
-4. **Access the application:**
+3. **Access the application:**
    - Open http://localhost:3005
    - Sign up with any email/password (password validation is bypassed)
    - Create your first workspace
@@ -106,22 +122,24 @@ This fork automatically marks the instance as setup complete on API startup. Sim
 #### Manual Setup (If Needed)
 
 If you still see a setup/maintenance screen:
-   ```bash
-   docker exec plane-plane-api-1 python -c "
-   import os, sys, django
-   os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
-   sys.path.insert(0, '/code')
-   django.setup()
-   from plane.license.models import Instance
-   i = Instance.objects.last()
-   i.is_setup_done = True
-   i.is_signup_screen_visited = True
-   i.save()
-   print('Setup marked complete')
-   "
-   docker exec plane-plane-api-1 python manage.py clear_cache
-   docker restart plane-plane-api-1
-   ```
+
+```bash
+docker exec plane-plane-api-1 python -c "
+import os, sys, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'plane.settings.production')
+sys.path.insert(0, '/code')
+django.setup()
+from plane.license.models import Instance
+i = Instance.objects.last()
+i.is_setup_done = True
+i.is_signup_screen_visited = True
+i.save()
+print('Setup marked complete')
+"
+docker exec plane-plane-api-1 python manage.py clear_cache
+docker restart plane-plane-api-1
+```
+
 3. Refresh the browser and you should see the login page
 4. Sign up with your email and create your account
 
@@ -446,6 +464,7 @@ docker exec plane-plane-api-1 python manage.py clear_cache
 **Backup location:** `data/backups/full/`
 
 **Contents:**
+
 - Full PostgreSQL dump
 - All entities as JSON (users, projects, issues, modules, cycles, pages)
 - MinIO uploads (profile pictures, attachments)

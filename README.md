@@ -82,6 +82,22 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 2. Wait for `plane-migrator` to finish; `plane-api` and `plane-web` should stay healthy after.
 3. Open http://localhost:3005.
 
+## 🚀 Personal Self-Hosting (Lite Mode)
+
+For personal use on hardware with limited RAM (e.g., laptops, mini PCs), use the optimized `docker-compose-pc.yaml`.
+
+**Benefits:**
+
+- **Saves ~50% RAM**: Removes `plane-edge`, `plane-migrator`, and 3 backup containers (`db-backup`, `minio-backup`, `plane-backup`).
+- **Resource Limits**: Strict CPU and Memory limits on all containers.
+- **Consolidated Services**: Streamlined for single-user performance.
+
+**Start Command:**
+
+```bash
+docker compose -f docker-compose-pc.yaml up -d
+```
+
 ## First login / auth fixes
 
 - **Auto-setup**: Instance is automatically marked as setup complete on API startup (no more getting-started page).
@@ -140,10 +156,12 @@ If you previously used `./pgdata`, `./redisdata`, `./rabbitmqdata`, or `./upload
 ## Backups and restore
 
 ### Automatic Backups
+
 - Postgres dumps land in `data/backups/db` (default every 24h). Tune `BACKUP_INTERVAL` env.
 - MinIO mirror lands in `data/backups/minio` (same interval).
 
 ### Full Manual Backup (Recommended)
+
 Use the backup container for comprehensive backups including all data:
 
 ```powershell
@@ -162,6 +180,7 @@ docker exec plane-plane-api-1 python manage.py clear_cache
 ```
 
 **Backup contents:**
+
 - `database/plane_db.sql` - Full PostgreSQL dump
 - `metadata/*.json` - All entities as JSON (users, projects, issues, modules, cycles, pages, etc.)
 - `uploads/` - MinIO files (profile pictures, attachments)
@@ -169,6 +188,7 @@ docker exec plane-plane-api-1 python manage.py clear_cache
 **Output location:** `data/backups/full/`
 
 ### Manual Restore (Legacy)
+
 - Restore Postgres: stop writers, copy dump into container or mount, then `docker compose exec plane-db psql -U plane -d plane -f /backups/<dump>.sql`.
 - Restore uploads: stop `plane-minio`, replace `data/minio` from backup, start again.
 
