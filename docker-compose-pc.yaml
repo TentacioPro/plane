@@ -5,7 +5,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: plane-tunnel
     restart: unless-stopped
-    command: tunnel run --token docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJhIjoiY2NmMDYwMDkwNDliMTA0YjY4MzBiOTY4ZTkyM2UwMjAiLCJ0IjoiYzhjZGQ5YWMtOTYwZC00MDFhLTlhODktNWRiNzE1NTA4N2MzIiwicyI6Ik5URmpPRFkyTnpRdFlUQTFZaTAwTkRKakxXRXpNbVF0WWpFek1tRXpZVEF6T1RWbSJ9
+    command: tunnel run --token eyJhIjoiY2NmMDYwMDkwNDliMTA0YjY4MzBiOTY4ZTkyM2UwMjAiLCJ0IjoiYzhjZGQ5YWMtOTYwZC00MDFhLTlhODktNWRiNzE1NTA4N2MzIiwicyI6Ik5URmpPRFkyTnpRdFlUQTFZaTAwTkRKakxXRXpNbVF0WWpFek1tRXpZVEF6T1RWbSJ9
     networks:
       - plane-net
     deploy:
@@ -44,6 +44,9 @@ services:
       dockerfile: Dockerfile.api
     command: /bin/bash -c "export PORT=8000 && python manage.py migrate && ./bin/docker-entrypoint-api.sh"
     environment:
+    # --- FIX IS HERE: Set explicitly to 1 ---
+      GUNICORN_WORKERS: 1
+      PORT: 8000
       # CRITICAL: Point to public domain
       WEB_URL: "https://plane.abishek.pro"
       CORS_ALLOWED_ORIGINS: "https://plane.abishek.pro"
@@ -70,6 +73,12 @@ services:
         condition: service_started
     networks:
       - plane-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(3);\ntry: s.connect(('127.0.0.1',8000)); sys.exit(0)\nexcept Exception: sys.exit(1)\nfinally: s.close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:
