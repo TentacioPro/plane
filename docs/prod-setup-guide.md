@@ -94,6 +94,29 @@ This was the critical phase where we resolved multiple "Showstopper" bugs.
 - **Why:** Nginx acts as a stable buffer. Cloudflare talks to Nginx (Robust) → Nginx talks to Gunicorn (Fragile).
 - This stabilized the connection instantly.
 
+### Bug 6: The "403 Forbidden" Asset Error
+
+- **Symptom:** The application loaded fine, but profile pictures and file uploads failed with a `403 Forbidden` error. The URL contained long query parameters like `?X-Amz-Signature=...`.
+- **Root Cause:** **AWS Signature Mismatch**. MinIO uses the AWS S3 v4 Signature protocol. The Plane API was generating a signature based on the internal hostname (`http://plane-minio:9000`), but the browser tried to use that signature to access the external hostname (`https://files.abishek.pro`). MinIO rejected the request because the "Host" header in the signature did not match the request.
+- **Fix:** Updated `AWS_S3_ENDPOINT_URL` in `docker-compose-pc.yaml` to point to the **public domain** (`https://files.abishek.pro`). This forces the API to calculate signatures using the external hostname.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant API as Plane API (Backend)
+    participant MinIO as MinIO (Storage)
+
+    Note over API: OLD WAY (Broken)
+    API->>Browser: "Here is a key signed for 'plane-minio:9000'"
+    Browser->>MinIO: "Hey 'files.abishek.pro', here is my key!"
+    MinIO-->>Browser: ❌ 403 Forbidden (Signature Host Mismatch)
+
+    Note over API: NEW WAY (Fixed)
+    API->>Browser: "Here is a key signed for 'files.abishek.pro'"
+    Browser->>MinIO: "Hey 'files.abishek.pro', here is my key!"
+    MinIO-->>Browser: ✅ 200 OK (Signature Matches!)
+```
+
 ---
 
 ## 5. Final Critical Configuration
@@ -151,3 +174,11 @@ docker exec -t plane-selfhost-plane-db-1 pg_dumpall -c -U plane > backup_$(date 
 - **Analytics:** Cloudflare Web Analytics is currently injecting JS beacons for traffic monitoring.
 - **Storage:** If local disk space runs out, we can re-point `files.abishek.pro` to an actual AWS S3 bucket without changing the app code.
 - **Auth:** Currently using Email/Password. Can integrate Google/GitHub OAuth via the Admin panel since the domain is now public and valid.
+
+## 8. Next Step
+
+Your "Lite Mode" Self-Hosted Plane instance is now fully operational, secure, and documented.
+
+- **URL:** https://plane.abishek.pro
+- **Storage:** https://files.abishek.pro
+- **Infrastructure:** 100% Local Docker.

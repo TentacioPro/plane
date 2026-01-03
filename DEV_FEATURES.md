@@ -366,3 +366,4 @@ During the development of Lite Mode, several critical issues were resolved:
 3.  **Double API Path:** Frontend requested `/api/api/...`. **Fix:** Updated build args to point to root domain.
 4.  **Infinite Login Loop:** CSRF validation failed behind Cloudflare. **Fix:** Added `CSRF_TRUSTED_ORIGINS` and `PROXY_SCHEME`.
 5.  **502 Bad Gateway:** Cloudflare Tunnel struggled with direct Gunicorn connection. **Fix:** Re-introduced `plane-edge` (Nginx) as a buffer.
+6.  **403 Forbidden (Assets):** MinIO rejected uploads due to signature host mismatch (internal vs external). **Fix:** Updated `AWS_S3_ENDPOINT_URL` to point to the public domain (`https://files.abishek.pro`).
