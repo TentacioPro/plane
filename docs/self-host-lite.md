@@ -13,7 +13,22 @@ The Lite Mode stack removes redundant enterprise features to save approximately 
 - **plane-redis**: Redis for caching and task queue results.
 - **plane-mq**: RabbitMQ for task message brokering.
 - **plane-minio**: MinIO object storage for file uploads.
+- **plane-edge**: Nginx reverse proxy (restored for stability and routing).
 - **tunnel**: Cloudflare Tunnel for secure public access without opening ports.
+
+## Maintenance Commands
+
+**Start/Update System:**
+
+```bash
+docker compose -f docker-compose-pc.yaml up -d --remove-orphans
+```
+
+**Rebuild Frontend (If changing URLs):**
+
+```bash
+docker compose -f docker-compose-pc.yaml up -d --build plane-web
+```
 
 ## Manual Backups
 

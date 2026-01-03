@@ -338,7 +338,7 @@ docker exec plane-plane-api-1 python manage.py clear_cache
 
 ### Problem
 
-The standard `docker-compose.yaml` includes enterprise-grade redundancy (Edge proxy, separate Migrator, 3x Backup containers) which consumes excessive RAM (4GB+) for a single-user local instance.
+The standard `docker-compose.yaml` includes enterprise-grade redundancy (separate Migrator, 3x Backup containers) which consumes excessive RAM (4GB+) for a single-user local instance.
 
 ### Solution
 
@@ -346,7 +346,8 @@ Created `docker-compose-pc.yaml`, a "Lite Edition" optimized for personal hardwa
 
 **Key Changes:**
 
-- **Removed:** `plane-edge` (Nginx), `plane-migrator`, `db-backup`, `minio-backup`, `plane-backup`.
+- **Removed:** `plane-migrator` (switched to manual migration), `db-backup`, `minio-backup`, `plane-backup`.
+- **Restored:** `plane-edge` (Nginx) was initially removed but restored to fix 502 errors with Cloudflare Tunnel.
 - **Added:** Resource limits (cpus/memory) for all services.
 - **Result:** Runs comfortably on <4GB RAM.
 
@@ -355,3 +356,13 @@ Created `docker-compose-pc.yaml`, a "Lite Edition" optimized for personal hardwa
 ```bash
 docker compose -f docker-compose-pc.yaml up -d
 ```
+
+### Debugging Log (Stabilization)
+
+During the development of Lite Mode, several critical issues were resolved:
+
+1.  **Zombie Containers:** `plane-web` failed because `plane-api` and `plane-minio` lacked healthchecks in the simplified compose file. **Fix:** Restored healthchecks.
+2.  **Gunicorn Crash:** API failed with `invalid int value` for workers. **Fix:** Set `GUNICORN_WORKERS: 1`.
+3.  **Double API Path:** Frontend requested `/api/api/...`. **Fix:** Updated build args to point to root domain.
+4.  **Infinite Login Loop:** CSRF validation failed behind Cloudflare. **Fix:** Added `CSRF_TRUSTED_ORIGINS` and `PROXY_SCHEME`.
+5.  **502 Bad Gateway:** Cloudflare Tunnel struggled with direct Gunicorn connection. **Fix:** Re-introduced `plane-edge` (Nginx) as a buffer.

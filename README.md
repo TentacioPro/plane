@@ -88,9 +88,10 @@ For personal use on hardware with limited RAM (e.g., laptops, mini PCs), use the
 
 **Benefits:**
 
-- **Saves ~50% RAM**: Removes `plane-edge`, `plane-migrator`, and 3 backup containers (`db-backup`, `minio-backup`, `plane-backup`).
+- **Saves ~50% RAM**: Removes `plane-migrator` and 3 backup containers (`db-backup`, `minio-backup`, `plane-backup`).
 - **Resource Limits**: Strict CPU and Memory limits on all containers.
 - **Consolidated Services**: Streamlined for single-user performance.
+- **Stability**: Includes `plane-edge` (Nginx) to handle internal routing and prevent 502 errors with Cloudflare Tunnel.
 
 **Start Command:**
 
