@@ -734,6 +734,8 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     const idMap: Record<string, string> = {};
     // Track issues that need module/cycle linking (post-creation)
     const issueLinkQueue: { issueId: string; moduleIds: string[]; cycleId?: string }[] = [];
+    // Track cycles that need end_date update (post-linking)
+    const cycleUpdateQueue: { cycleId: string; endDate: string }[] = [];
 
     if (parsedData.mode === "full") {
       const fullData = parsedData.data as FullProjectData;
@@ -764,6 +766,8 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
             // Store module/cycle refs before removing them (they need separate API calls)
             let moduleRefs: string[] = [];
             let cycleRef: string | undefined;
+            // Store original cycle end_date (needs to be stripped during creation)
+            let originalCycleEndDate: string | undefined;
 
             if (type === "issue") {
               // Map state if it's a temp reference (API uses 'state' not 'state_id')
@@ -830,8 +834,16 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
               }
             }
             // Add project_id for cycles
-            if (type === "cycle" && !processedItem.project_id) {
-              processedItem.project_id = selectedProjectId;
+            if (type === "cycle") {
+              if (!processedItem.project_id) {
+                processedItem.project_id = selectedProjectId;
+              }
+              // If cycle has end_date, remove it temporarily to allow issue linking
+              // (Backend blocks adding issues to completed cycles)
+              if (processedItem.end_date && typeof processedItem.end_date === "string") {
+                originalCycleEndDate = processedItem.end_date;
+                delete processedItem.end_date;
+              }
             }
             // Pages use session auth (not API v1)
             if (type === "page") {
@@ -862,6 +874,10 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                 // Queue module/cycle linking for issues
                 if (type === "issue" && created.id && (moduleRefs.length > 0 || cycleRef)) {
                   issueLinkQueue.push({ issueId: created.id, moduleIds: moduleRefs, cycleId: cycleRef });
+                }
+                // Queue cycle update if needed
+                if (type === "cycle" && created.id && originalCycleEndDate) {
+                  cycleUpdateQueue.push({ cycleId: created.id, endDate: originalCycleEndDate });
                 }
               } else {
                 totalResult.failed++;
@@ -918,6 +934,27 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           } catch (err) {
             totalResult.errors.push(`cycle-link: ${err instanceof Error ? err.message : "Network error"}`);
           }
+        }
+      }
+
+      // Process cycle end_date updates (restore original dates after linking issues)
+      for (const update of cycleUpdateQueue) {
+        try {
+          const cycleEndpoint = `/api/workspaces/${effectiveWorkspaceSlug}/projects/${selectedProjectId}/cycles/${update.cycleId}/`;
+          const response = await fetch(cycleEndpoint, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ end_date: update.endDate }),
+          });
+          if (!response.ok) {
+            const errorData = (await response.json().catch(() => ({}))) as { detail?: string; error?: string };
+            totalResult.errors.push(
+              `cycle-update: Failed to restore end_date for cycle ${update.cycleId} - ${errorData.detail || errorData.error || response.status}`
+            );
+          }
+        } catch (err) {
+          totalResult.errors.push(`cycle-update: ${err instanceof Error ? err.message : "Network error"}`);
         }
       }
     } else {

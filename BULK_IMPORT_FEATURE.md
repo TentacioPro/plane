@@ -22,6 +22,14 @@ Users can now create a new project directly from the Bulk Import modal. A "New" 
 - **Feature Toggles**: Enable/disable Cycles, Modules, Views, Pages, and Intake during creation.
 - **Auto-selection**: The new project is automatically selected upon success.
 
+### 4. Historical Cycle Import Fix
+
+Fixed an issue where importing completed cycles (with past end dates) prevented issues from being linked to them. The import process now:
+
+1. Creates cycles without end dates (temporarily active).
+2. Creates and links issues.
+3. Updates cycles with their original end dates.
+
 ## Test Results
 
 All API tests passed (8/8):
