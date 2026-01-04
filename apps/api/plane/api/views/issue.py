@@ -883,13 +883,8 @@ class LabelListCreateAPIEndpoint(BaseAPIView):
                 project_id=project_id,
                 name=request.data.get("name"),
             ).first()
-            return Response(
-                {
-                    "error": "Label with the same name already exists in the project",
-                    "id": str(label.id),
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
+            serializer = LabelSerializer(label)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     @label_docs(
         operation_id="list_labels",

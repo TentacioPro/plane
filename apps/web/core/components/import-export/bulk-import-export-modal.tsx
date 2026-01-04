@@ -12,6 +12,7 @@ import {
   Download,
   FileUp,
   Loader2,
+  Plus,
   Upload,
   X,
 } from "lucide-react";
@@ -240,6 +241,13 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
   const [importEntityType, setImportEntityType] = useState<ImportEntityType>("issue");
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [currentImportItem, setCurrentImportItem] = useState<string>("");
+  const [importProgress, setImportProgress] = useState<number>(0);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectIdentifier, setNewProjectIdentifier] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [isCreatingProjectLoading, setIsCreatingProjectLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageWorkspaceData = allowPermissions(
@@ -593,7 +601,15 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     const result = { success: 0, failed: 0, errors: [] as string[] };
     const endpoint = getApiEndpoint(entityType);
 
+    let currentCount = 0;
+    const total = items.length;
+
     for (const item of items) {
+      currentCount++;
+      setImportProgress(Math.round((currentCount / total) * 100));
+      setCurrentImportItem(`${entityType}: ${(item as { name?: string }).name || "item"}`);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       try {
         const response = await fetch(endpoint, {
           method: "POST",
@@ -617,13 +633,79 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
     return result;
   };
 
+  const handleCreateProject = async () => {
+    if (!newProjectName || !newProjectIdentifier || !effectiveWorkspaceSlug) return;
+    setIsCreatingProjectLoading(true);
+    try {
+      const response = await fetch(`/api/workspaces/${effectiveWorkspaceSlug}/projects/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: newProjectName,
+          identifier: newProjectIdentifier.toUpperCase(),
+          description: newProjectDescription,
+          emoji: "📊",
+          network: 2, // Secret project by default
+        }),
+      });
+
+      if (response.ok) {
+        const project = (await response.json()) as { id: string; name: string };
+        setSelectedProjectId(project.id);
+        setIsCreatingProject(false);
+        setNewProjectName("");
+        setNewProjectIdentifier("");
+        setNewProjectDescription("");
+        setToast({
+          type: TOAST_TYPE.SUCCESS,
+          title: "Project Created",
+          message: `Project ${project.name} created successfully`,
+        });
+      } else {
+        const error = (await response.json()) as { message?: string };
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Creation Failed",
+          message: error.message || "Failed to create project",
+        });
+      }
+    } catch (_err) {
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: "Error",
+        message: "An error occurred while creating the project",
+      });
+    } finally {
+      setIsCreatingProjectLoading(false);
+    }
+  };
+
   // Enhanced import with ID mapping for full project context
   const handleImport = async () => {
     if (!parsedData || !selectedProjectId || !effectiveWorkspaceSlug) return;
     setIsImporting(true);
     setImportResult(null);
+    setImportProgress(0);
+    setCurrentImportItem("Starting import...");
 
     const totalResult: ImportResult = { success: 0, failed: 0, errors: [] };
+
+    let totalItems = 0;
+    let processedItems = 0;
+
+    if (parsedData.mode === "full") {
+      const fullData = parsedData.data as FullProjectData;
+      totalItems =
+        (fullData.states?.length || 0) +
+        (fullData.labels?.length || 0) +
+        (fullData.modules?.length || 0) +
+        (fullData.cycles?.length || 0) +
+        (fullData.pages?.length || 0) +
+        (fullData.issues?.length || 0);
+    } else {
+      totalItems = (parsedData.data as unknown[]).length;
+    }
 
     // ID mapping for cross-references (temp_id -> real_id)
     const idMap: Record<string, string> = {};
@@ -649,6 +731,11 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           const endpoint = getApiEndpoint(type);
 
           for (const item of items) {
+            processedItems++;
+            setImportProgress(Math.round((processedItems / totalItems) * 100));
+            setCurrentImportItem(`${type}: ${(item as { name?: string }).name || "item"}`);
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
             // Replace temp IDs with real IDs for issues
             const processedItem = { ...item };
             // Store module/cycle refs before removing them (they need separate API calls)
@@ -907,6 +994,12 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
             optionsClassName="max-w-64"
             disabled={!canManageWorkspaceData || projectOptions.length === 0}
           />
+          {canManageWorkspaceData && (
+            <Button variant="secondary" size="sm" onClick={() => setIsCreatingProject(!isCreatingProject)}>
+              {isCreatingProject ? <X className="size-3.5 mr-1" /> : <Plus className="size-3.5 mr-1" />}
+              {isCreatingProject ? "Cancel" : "New"}
+            </Button>
+          )}
           {!canManageWorkspaceData && (
             <span className="text-xs text-warning-primary">Admin or Member access required</span>
           )}
@@ -914,7 +1007,67 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto space-y-4">
-          {activeTab === "import" ? (
+          {isCreatingProject ? (
+            <div className="rounded-lg border border-subtle-1 bg-layer-1 p-4 space-y-4">
+              <h4 className="text-sm font-medium text-primary">Create New Project</h4>
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="new-project-name" className="text-xs text-tertiary mb-1 block">
+                    Name
+                  </label>
+                  <input
+                    id="new-project-name"
+                    type="text"
+                    className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none"
+                    placeholder="Project Name"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-project-identifier" className="text-xs text-tertiary mb-1 block">
+                    Identifier (Key)
+                  </label>
+                  <input
+                    id="new-project-identifier"
+                    type="text"
+                    className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none uppercase"
+                    placeholder="PRJ"
+                    maxLength={5}
+                    value={newProjectIdentifier}
+                    onChange={(e) => setNewProjectIdentifier(e.target.value.toUpperCase())}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new-project-description" className="text-xs text-tertiary mb-1 block">
+                    Description
+                  </label>
+                  <textarea
+                    id="new-project-description"
+                    className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none"
+                    placeholder="Project Description"
+                    rows={3}
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="ghost" size="sm" onClick={() => setIsCreatingProject(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void handleCreateProject()}
+                    disabled={!newProjectName || !newProjectIdentifier || isCreatingProjectLoading}
+                  >
+                    {isCreatingProjectLoading ? <Loader2 className="size-3.5 animate-spin mr-1" /> : null}
+                    Create Project
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === "import" ? (
             <>
               {/* Download Templates Section */}
               <div className="rounded-lg border border-subtle-1 bg-layer-1 p-4">
@@ -1037,25 +1190,33 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
 
                     {/* Import Button */}
                     <div className="mt-3 pt-3 border-t border-subtle-1 flex items-center gap-3">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => void handleImport()}
-                        disabled={isImporting || !selectedProjectId}
-                      >
-                        {isImporting ? (
-                          <>
-                            <Loader2 className="size-3.5 animate-spin" />
-                            Importing...
-                          </>
-                        ) : (
-                          <>
+                      {isImporting ? (
+                        <div className="w-full space-y-2">
+                          <div className="flex justify-between text-xs text-tertiary">
+                            <span>Importing... {importProgress}%</span>
+                            <span className="truncate max-w-[200px]">{currentImportItem}</span>
+                          </div>
+                          <div className="h-2 w-full bg-layer-3 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-accent-primary transition-all duration-300"
+                              style={{ width: `${importProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => void handleImport()}
+                            disabled={isImporting || !selectedProjectId}
+                          >
                             <Upload className="size-3.5" />
                             Import Data
-                          </>
-                        )}
-                      </Button>
-                      {!selectedProjectId && <span className="text-xs text-warning-primary">Select a project</span>}
+                          </Button>
+                          {!selectedProjectId && <span className="text-xs text-warning-primary">Select a project</span>}
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

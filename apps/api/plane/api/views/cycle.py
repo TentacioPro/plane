@@ -326,21 +326,35 @@ class CycleListCreateAPIEndpoint(BaseAPIView):
                         },
                         status=status.HTTP_409_CONFLICT,
                     )
-                serializer.save(project_id=project_id)
-                # Send the model activity
-                model_activity.delay(
-                    model_name="cycle",
-                    model_id=str(serializer.instance.id),
-                    requested_data=request.data,
-                    current_instance=None,
-                    actor_id=request.user.id,
-                    slug=slug,
-                    origin=base_host(request=request, is_app=True),
-                )
+                try:
+                    serializer.save(project_id=project_id)
+                    # Send the model activity
+                    model_activity.delay(
+                        model_name="cycle",
+                        model_id=str(serializer.instance.id),
+                        requested_data=request.data,
+                        current_instance=None,
+                        actor_id=request.user.id,
+                        slug=slug,
+                        origin=base_host(request=request, is_app=True),
+                    )
 
-                cycle = Cycle.objects.get(pk=serializer.instance.id)
-                serializer = CycleSerializer(cycle)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                    cycle = Cycle.objects.get(pk=serializer.instance.id)
+                    serializer = CycleSerializer(cycle)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                except Exception:
+                    cycle = Cycle.objects.filter(
+                        workspace__slug=slug,
+                        project_id=project_id,
+                        name=request.data.get("name"),
+                    ).first()
+                    if cycle:
+                        serializer = CycleSerializer(cycle)
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+                    return Response(
+                        {"error": "Cycle with the same name already exists"},
+                        status=status.HTTP_409_CONFLICT,
+                    )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(

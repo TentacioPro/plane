@@ -9,6 +9,10 @@ Local-only Plane OSS stack for personal use. No SaaS dependencies, no upgrade ba
 - Stay within Plane OSS licensing; no Pro/paid unlocks or bypasses.
 - Minimal services: Postgres, Redis, RabbitMQ, MinIO, API, Web, Edge proxy, Celery worker/beat, one-shot migrator, and backup jobs.
 
+## Features
+
+- **Bulk Import**: Full project import/export via JSON with cross-reference support and idempotent APIs. See [BULK_IMPORT_FEATURE.md](BULK_IMPORT_FEATURE.md) for details.
+
 ## Stack (docker-compose)
 
 ## Topology & ports

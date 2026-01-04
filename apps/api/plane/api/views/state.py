@@ -115,13 +115,8 @@ class StateListCreateAPIEndpoint(BaseAPIView):
                 project_id=project_id,
                 name=request.data.get("name"),
             ).first()
-            return Response(
-                {
-                    "error": "State with the same name already exists in the project",
-                    "id": str(state.id),
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
+            serializer = StateSerializer(state)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     @state_docs(
         operation_id="list_states",

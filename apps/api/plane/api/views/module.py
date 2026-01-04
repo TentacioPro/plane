@@ -220,20 +220,34 @@ class ModuleListCreateAPIEndpoint(BaseAPIView):
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
-            serializer.save()
-            # Send the model activity
-            model_activity.delay(
-                model_name="module",
-                model_id=str(serializer.instance.id),
-                requested_data=request.data,
-                current_instance=None,
-                actor_id=request.user.id,
-                slug=slug,
-                origin=base_host(request=request, is_app=True),
-            )
-            module = Module.objects.get(pk=serializer.instance.id)
-            serializer = ModuleSerializer(module)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save()
+                # Send the model activity
+                model_activity.delay(
+                    model_name="module",
+                    model_id=str(serializer.instance.id),
+                    requested_data=request.data,
+                    current_instance=None,
+                    actor_id=request.user.id,
+                    slug=slug,
+                    origin=base_host(request=request, is_app=True),
+                )
+                module = Module.objects.get(pk=serializer.instance.id)
+                serializer = ModuleSerializer(module)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception:
+                module = Module.objects.filter(
+                    workspace__slug=slug,
+                    project_id=project_id,
+                    name=request.data.get("name"),
+                ).first()
+                if module:
+                    serializer = ModuleSerializer(module)
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(
+                    {"error": "Module with the same name already exists"},
+                    status=status.HTTP_409_CONFLICT,
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @module_docs(

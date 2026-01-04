@@ -4,6 +4,20 @@ Feature to enable bulk data population in Plane via API with complete schema doc
 
 ## Status: ✅ Complete (v2 - Session Auth + Work Items)
 
+## Recent Updates (v2.1)
+
+### 1. Idempotent Import
+
+Backend APIs for State, Module, Cycle, and Label creation have been updated to handle duplicates gracefully. If an entity with the same name (and project) already exists, the API returns the existing entity's ID instead of a 400/409 error. This allows imports to be re-run safely without failure.
+
+### 2. Enhanced Import Loader
+
+The import modal now features a real-time progress bar and text transition showing exactly which item is being processed. This provides better feedback during large imports.
+
+### 3. Create Project Flow
+
+Users can now create a new project directly from the Bulk Import modal. A "New" button next to the project selector opens a quick creation form, automatically selecting the new project upon success.
+
 ## Test Results
 
 All API tests passed (8/8):
