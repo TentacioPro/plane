@@ -20,8 +20,10 @@ import {
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
+import { CycleIcon, IntakeIcon, ModuleIcon, PageIcon, ViewsIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { CustomSearchSelect, CustomSelect, EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
+import { CustomSearchSelect, CustomSelect, EModalPosition, EModalWidth, ModalCore, ToggleSwitch } from "@plane/ui";
+import { projectIdentifierSanitizer } from "@plane/utils";
 // components
 import { ExportForm } from "@/components/exporter/export-form";
 // hooks
@@ -248,6 +250,14 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
   const [newProjectIdentifier, setNewProjectIdentifier] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [isCreatingProjectLoading, setIsCreatingProjectLoading] = useState(false);
+  const [isIdentifierTouched, setIsIdentifierTouched] = useState(false);
+  const [projectFeatures, setProjectFeatures] = useState({
+    cycles: true,
+    modules: true,
+    views: true,
+    pages: true,
+    intake: false,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canManageWorkspaceData = allowPermissions(
@@ -647,6 +657,11 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
           description: newProjectDescription,
           emoji: "📊",
           network: 2, // Secret project by default
+          cycle_view: projectFeatures.cycles,
+          module_view: projectFeatures.modules,
+          issue_views_view: projectFeatures.views,
+          page_view: projectFeatures.pages,
+          inbox_view: projectFeatures.intake,
         }),
       });
 
@@ -657,6 +672,14 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
         setNewProjectName("");
         setNewProjectIdentifier("");
         setNewProjectDescription("");
+        setIsIdentifierTouched(false);
+        setProjectFeatures({
+          cycles: true,
+          modules: true,
+          views: true,
+          pages: true,
+          intake: false,
+        });
         setToast({
           type: TOAST_TYPE.SUCCESS,
           title: "Project Created",
@@ -1021,7 +1044,13 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                     className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none"
                     placeholder="Project Name"
                     value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewProjectName(val);
+                      if (!isIdentifierTouched) {
+                        setNewProjectIdentifier(projectIdentifierSanitizer(val).substring(0, 5).toUpperCase());
+                      }
+                    }}
                   />
                 </div>
                 <div>
@@ -1031,11 +1060,14 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                   <input
                     id="new-project-identifier"
                     type="text"
-                    className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none uppercase"
+                    className="w-full rounded-md border border-subtle-1 bg-layer-2 px-3 py-2 text-sm text-primary focus:border-accent-primary focus:outline-none uppercase font-mono tracking-wider"
                     placeholder="PRJ"
                     maxLength={5}
                     value={newProjectIdentifier}
-                    onChange={(e) => setNewProjectIdentifier(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      setNewProjectIdentifier(e.target.value.toUpperCase());
+                      setIsIdentifierTouched(true);
+                    }}
                   />
                 </div>
                 <div>
@@ -1051,6 +1083,46 @@ export const BulkImportExportModal = observer(function BulkImportExportModal(pro
                     onChange={(e) => setNewProjectDescription(e.target.value)}
                   />
                 </div>
+
+                {/* Feature Toggles */}
+                <div className="pt-2 space-y-3 border-t border-subtle-1">
+                  <h5 className="text-xs font-medium text-tertiary">Project Features</h5>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { key: "cycles", label: "Cycles", icon: CycleIcon, desc: "Timebox work into sprints" },
+                      { key: "modules", label: "Modules", icon: ModuleIcon, desc: "Group work into sub-projects" },
+                      { key: "views", label: "Views", icon: ViewsIcon, desc: "Save custom filters and sorts" },
+                      { key: "pages", label: "Pages", icon: PageIcon, desc: "Create docs and notes" },
+                      { key: "intake", label: "Intake", icon: IntakeIcon, desc: "Collect issues from outside" },
+                    ].map((feature) => (
+                      <div
+                        key={feature.key}
+                        className="flex items-center justify-between p-2 rounded-md bg-layer-2 border border-subtle-1"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-layer-1 text-tertiary">
+                            <feature.icon className="size-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-primary">{feature.label}</p>
+                            <p className="text-xs text-tertiary">{feature.desc}</p>
+                          </div>
+                        </div>
+                        <ToggleSwitch
+                          value={projectFeatures[feature.key as keyof typeof projectFeatures]}
+                          onChange={() =>
+                            setProjectFeatures((prev) => ({
+                              ...prev,
+                              [feature.key]: !prev[feature.key as keyof typeof projectFeatures],
+                            }))
+                          }
+                          size="sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="ghost" size="sm" onClick={() => setIsCreatingProject(false)}>
                     Cancel

@@ -519,6 +519,7 @@ For production deployments:
    - Copy-to-clipboard for endpoints and JSON payloads
    - CSV template download
    - Full schema JSON download
+4. **Create New Project**: You can create a new project directly from the modal using the "New" button next to the project selector. This includes options for feature flags (Cycles, Modules, etc.) and auto-generated identifiers.
 
 ### Creating an API Token
 

@@ -115,6 +115,7 @@ Added comprehensive bulk import modal with full entity sync support using sessio
 - Module-Issue and Cycle-Issue post-creation linking
 - API schema reference
 - Session authentication (no API key required when logged in)
+- **Quick Project Creation**: Create projects with feature toggles (Cycles, Modules, etc.) and auto-generated identifiers directly from the modal.
 
 **Key Fix (Jan 2026):** Fixed project selector returning character index instead of UUID by correcting `CustomSearchSelect` usage with `multiple={false}`.
 

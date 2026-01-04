@@ -16,7 +16,11 @@ The import modal now features a real-time progress bar and text transition showi
 
 ### 3. Create Project Flow
 
-Users can now create a new project directly from the Bulk Import modal. A "New" button next to the project selector opens a quick creation form, automatically selecting the new project upon success.
+Users can now create a new project directly from the Bulk Import modal. A "New" button next to the project selector opens a quick creation form with:
+
+- **Auto-generated Identifier**: Typing the project name automatically generates a 5-character uppercase key.
+- **Feature Toggles**: Enable/disable Cycles, Modules, Views, Pages, and Intake during creation.
+- **Auto-selection**: The new project is automatically selected upon success.
 
 ## Test Results
 
